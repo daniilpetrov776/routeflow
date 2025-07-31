@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
+import { setRoutes, setCalculating } from "@/store/route-slice";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Minus, Crosshair } from "lucide-react";
@@ -9,40 +10,64 @@ import type { AddressPoint, RouteOption } from "@/store/route-slice";
 interface MapContainerProps {
   isLoaded: boolean;
   routes: RouteOption[];
-  selectedRouteId: string | null;
   startingPoint: AddressPoint | null;
   destinations: AddressPoint[];
 }
 
-export function MapContainer({ 
-  isLoaded, 
-  routes, 
-  selectedRouteId, 
-  startingPoint, 
-  destinations 
+export function MapContainer({
+  isLoaded,
+  routes,
+  startingPoint,
+  destinations
 }: MapContainerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const yandexMapRef = useRef<any>(null);
-  const { isCalculating } = useSelector((state: RootState) => state.route);
+  const routesRef = useRef<any[]>([]);
+  const dispatch = useDispatch();
+
+  // 1. Новые хуки для динамической перекраски
+  const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
+  const { isCalculating, transportMode } = useSelector((state: RootState) => state.route);
+
+  // 2. Индекс самого быстрого маршрута
+  const fastestIndex = calculatedRoutes.length > 0
+    ? calculatedRoutes.reduce(
+        (bestIdx, _, i) =>
+          calculatedRoutes[i].duration < calculatedRoutes[bestIdx].duration
+            ? i
+            : bestIdx,
+        0
+      )
+    : 0;
+
+  // 3. Эффект для обновления стилей уже отрисованных маршрутов
+  useEffect(() => {
+    if (!yandexMapRef.current) return;
+
+    routesRef.current.forEach((multiRouteObj, idx) => {
+      const isFastest = idx === fastestIndex;
+      multiRouteObj.options.set({
+        routeActiveStrokeColor: isFastest ? '#28a745' : '#007bff',
+        routeActiveStrokeWidth: isFastest ? 6 : 4,
+        opacity:                isFastest ? 1.0  : 0.7,
+      });
+    });
+  }, [calculatedRoutes, fastestIndex]);
 
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
 
-    // Initialize Yandex Map
     const initMap = () => {
-      // @ts-ignore - Yandex Maps API
+      // @ts-ignore
       yandexMapRef.current = new ymaps.Map(mapRef.current, {
-        center: [55.76, 37.64], // Moscow center
+        center: [55.76, 37.64],
         zoom: 10,
         controls: []
       });
     };
 
-    // @ts-ignore - Yandex Maps API
-    if (window.ymaps) {
-      // @ts-ignore
-      ymaps.ready(initMap);
-    }
+    // @ts-ignore
+    if (window.ymaps) ymaps.ready(initMap);
 
     return () => {
       if (yandexMapRef.current) {
@@ -51,148 +76,193 @@ export function MapContainer({
     };
   }, [isLoaded]);
 
+  const calculateRoutes = async () => {
+    if (!yandexMapRef.current || !startingPoint) return;
+  
+    const validDestinations = destinations.filter(
+      d => d.address && d.address.trim() !== ''
+    );
+    if (validDestinations.length === 0) return;
+  
+    dispatch(setCalculating(true));
+  
+    // 1) Сначала очищаем старые маршруты
+    routesRef.current.forEach(route => {
+      yandexMapRef.current.geoObjects.remove(route);
+    });
+    routesRef.current = [];
+  
+    // 2) Подготавливаем массив результатов нужной длины
+    const routeResults: Array<RouteOption | null> = new Array(validDestinations.length).fill(null);
+    let completed = 0;
+  
+    for (let i = 0; i < validDestinations.length; i++) {
+      const destination = validDestinations[i];
+  
+      // Преобразуем transportMode в формат Yandex
+      let routingMode: "auto" | "pedestrian" | "bicycle" | "masstransit" = "auto";
+      switch (transportMode) {
+        case "walking":
+          routingMode = "pedestrian";
+          break;
+        case "cycling":
+          routingMode = "bicycle";
+          break;
+        case "transit":
+          routingMode = "masstransit";
+          break;
+        case "driving":
+        default:
+          routingMode = "auto";
+      }
+  
+      // 3) Создаем MultiRoute
+      // @ts-ignore
+      const route = new ymaps.multiRouter.MultiRoute(
+        {
+          referencePoints: [
+            startingPoint.coordinates,
+            destination.coordinates,
+          ],
+          params: {
+            routingMode,
+            avoidTrafficJams: true,
+          },
+        },
+        {
+          wayPointStartIconColor: "#28a745",
+          wayPointFinishIconColor: "#dc3545",
+          routeActiveStrokeColor: i === 0 ? "#28a745" : "#007bff",
+          routeActiveStrokeWidth: i === 0 ? 6 : 4,
+          opacity: i === 0 ? 1.0 : 0.7,
+        }
+      );
+  
+      // Добавляем маршрут на карту и в ref
+      yandexMapRef.current.geoObjects.add(route);
+      routesRef.current.push(route);
+  
+      // 4) Обработка успешного расчёта
+      route.model.events.add("requestsuccess", () => {
+        const activeRoute = route.getActiveRoute();
+        if (!activeRoute) return;
+  
+        // Формируем объект результата и сохраняем по индексу i
+        const opt: RouteOption = {
+          id: `route-${i}`,
+          destination,
+          duration: activeRoute.properties.get("duration")?.value || 0,
+          distance: activeRoute.properties.get("distance")?.value || 0,
+          traffic_info: {
+            level: activeRoute.properties.get("blocked") ? "heavy" : "light",
+          },
+          geometry: {
+            coordinates: [
+              startingPoint.coordinates,
+              destination.coordinates,
+            ],
+          },
+        };
+        routeResults[i] = opt;
+        completed++;
+  
+        // Когда все маршруты готовы — диспатчим и обновляем стили
+        if (completed === validDestinations.length) {
+          // 5) Сохраняем результаты в Redux
+          dispatch(setRoutes(routeResults as RouteOption[]));
+          dispatch(setCalculating(false));
+  
+          // 6) Локально выделяем самый быстрый маршрут без ожидания дополнительного render
+          const fastestIdx = (routeResults as RouteOption[]).reduce(
+            (best, _, idx, arr) =>
+              arr[idx].duration < arr[best].duration ? idx : best,
+            0
+          );
+  
+          routesRef.current.forEach((multi, idx) => {
+            multi.options.set({
+              routeActiveStrokeColor:
+                idx === fastestIdx ? "#28a745" : "#007bff",
+              routeActiveStrokeWidth: idx === fastestIdx ? 6 : 4,
+              opacity: idx === fastestIdx ? 1.0 : 0.7,
+            });
+          });
+        }
+      });
+  
+      // 7) Обработка ошибок расчёта
+      route.model.events.add("requestfail", () => {
+        console.error(`Failed to calculate route #${i}`);
+        // Если это последний по порядку запрос, снимаем состояние calculating
+        if (completed + 1 === validDestinations.length) {
+          dispatch(setCalculating(false));
+        }
+      });
+    }
+  
+    // 8) Подогнать границы карты под все маршруты
+    setTimeout(() => {
+      const bounds = yandexMapRef.current.geoObjects.getBounds();
+      if (bounds) {
+        yandexMapRef.current.setBounds(bounds, {
+          checkZoomRange: true,
+          zoomMargin: 50,
+        });
+      }
+    }, 1000);
+  };
+
   useEffect(() => {
     if (!yandexMapRef.current || !startingPoint) return;
 
-    // Clear existing objects
     yandexMapRef.current.geoObjects.removeAll();
-    console.log("new start:", startingPoint)
-    // Add starting point marker
+    routesRef.current = [];
+
+    // стартовый маркер
     // @ts-ignore
     const startMarker = new ymaps.Placemark(
       startingPoint.coordinates,
-      { 
-        balloonContent: `<strong>Starting Point</strong><br/>${startingPoint.address}`,
-        iconCaption: 'Start'
-      },
-      {
-        preset: 'islands#greenCircleDotIconWithCaption',
-        iconCaptionMaxWidth: '200'
-      }
+      { balloonContent: `<strong>Начальная точка</strong><br/>${startingPoint.address}`, iconCaption: 'Старт' },
+      { preset: 'islands#greenCircleDotIconWithCaption', iconCaptionMaxWidth: '200' }
     );
-    
     yandexMapRef.current.geoObjects.add(startMarker);
-    // Center map on new starting point
-    yandexMapRef.current.setCenter(startingPoint.coordinates, 12, { duration: 300 });
 
-    // Add destination markers
-    destinations.forEach((destination, index) => {
-      if (destination.coordinates[0] !== 0 || destination.coordinates[1] !== 0) {
+    // маркеры для пунктов назначения
+    destinations.forEach((dest, index) => {
+      if (dest.address?.trim()) {
         // @ts-ignore
         const destMarker = new ymaps.Placemark(
-          destination.coordinates,
-          { 
-            balloonContent: `<strong>Destination ${index + 1}</strong><br/>${destination.address}`,
-            iconCaption: (index + 1).toString()
-          },
-          {
-            preset: 'islands#redCircleDotIconWithCaption',
-            iconCaptionMaxWidth: '200'
-          }
+          dest.coordinates,
+          { balloonContent: `<strong>Пункт назначения ${index + 1}</strong><br/>${dest.address}`, iconCaption: `${index + 1}` },
+          { preset: 'islands#redCircleDotIconWithCaption', iconCaptionMaxWidth: '200' }
         );
-        
         yandexMapRef.current.geoObjects.add(destMarker);
       }
     });
 
-    // Fit map to show all markers
-    if (destinations.length > 0) {
-      const bounds = [startingPoint.coordinates];
-      destinations.forEach(dest => {
-        if (dest.coordinates[0] !== 0 || dest.coordinates[1] !== 0) {
-          bounds.push(dest.coordinates);
-        }
-      });
-      
-      if (bounds.length > 1) {
-        yandexMapRef.current.setBounds(
-          yandexMapRef.current.geoObjects.getBounds(),
-          { checkZoomRange: true, zoomMargin: 50 }
-        );
-      }
+    // запустить расчёт, если есть валидные адреса
+    const validDestinations = destinations.filter(d => d.address?.trim());
+    if (validDestinations.length > 0) {
+      calculateRoutes();
     }
-  }, [startingPoint, destinations]);
 
-  useEffect(() => {
-    if (!yandexMapRef.current || routes.length === 0) return;
+    yandexMapRef.current.setCenter(startingPoint.coordinates, 12, { duration: 300 });
+  }, [startingPoint, destinations, transportMode]);
 
-    // Remove existing routes
-    yandexMapRef.current.geoObjects.each((obj: any) => {
-      if (obj.geometry && obj.geometry.getType() === 'LineString') {
-        yandexMapRef.current.geoObjects.remove(obj);
-      }
-    });
-
-    // Add route polylines
-    routes.forEach((route, index) => {
-      if (route.geometry) {
-        const isSelected = route.id === selectedRouteId;
-        const isFastest = routes.reduce((fastest, current) => 
-          current.duration < fastest.duration ? current : fastest
-        ).id === route.id;
-
-        let strokeColor = '#0066CC'; // Default blue
-        let strokeWidth = 3;
-        let strokeOpacity = 0.7;
-
-        if (isFastest) {
-          strokeColor = '#22C55E'; // Green for fastest
-          strokeWidth = 4;
-          strokeOpacity = 0.9;
-        } else if (isSelected) {
-          strokeWidth = 4;
-          strokeOpacity = 0.9;
-        }
-
-        // @ts-ignore
-        const polyline = new ymaps.Polyline(
-          route.geometry.coordinates || [],
-          { 
-            balloonContent: `Route ${index + 1}: ${Math.round(route.duration / 60)}min, ${(route.distance / 1000).toFixed(1)}km`
-          },
-          {
-            strokeColor,
-            strokeWidth,
-            strokeOpacity
-          }
-        );
-
-        yandexMapRef.current.geoObjects.add(polyline);
-      }
-    });
-  }, [routes, selectedRouteId]);
-
+  // Контролы зума и центровки
   const handleZoomIn = () => {
-    if (yandexMapRef.current) {
-      yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() + 1);
-    }
+    if (yandexMapRef.current) yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() + 1);
   };
-
   const handleZoomOut = () => {
-    if (yandexMapRef.current) {
-      yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() - 1);
-    }
+    if (yandexMapRef.current) yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() - 1);
   };
-
   const handleCenter = () => {
-    if (yandexMapRef.current && startingPoint) {
-      yandexMapRef.current.setCenter(startingPoint.coordinates);
-    }
+    if (yandexMapRef.current && startingPoint) yandexMapRef.current.setCenter(startingPoint.coordinates);
   };
-
-  const routeColors = [
-    { color: 'bg-green-500', label: 'Fastest Route' },
-    { color: 'bg-blue-500', label: 'Alternative' },
-    { color: 'bg-purple-500', label: 'Via Highway' },
-  ];
 
   return (
     <div className="flex-1 relative">
-      <div 
-        ref={mapRef}
-        className="w-full h-full bg-muted"
-        style={{ minHeight: '100%' }}
-      />
+      <div ref={mapRef} className="w-full h-full bg-muted" style={{ minHeight: '100%' }} />
 
       {!isLoaded && (
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 flex items-center justify-center">
@@ -219,50 +289,33 @@ export function MapContainer({
         </div>
       )}
 
-      {/* Map Controls */}
       <div className="absolute top-4 right-4 flex flex-col space-y-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleZoomIn}
-          className="bg-background border shadow-lg"
-        >
+        <Button variant="outline" size="icon" onClick={handleZoomIn} className="bg-background border shadow-lg">
           <Plus className="h-4 w-4" />
         </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleZoomOut}
-          className="bg-background border shadow-lg"
-        >
+        <Button variant="outline" size="icon" onClick={handleZoomOut} className="bg-background border shadow-lg">
           <Minus className="h-4 w-4" />
         </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleCenter}
-          className="bg-background border shadow-lg"
-        >
+        <Button variant="outline" size="icon" onClick={handleCenter} className="bg-background border shadow-lg">
           <Crosshair className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Route Legend */}
       {routes.length > 0 && (
         <Card className="absolute bottom-4 left-4 shadow-lg">
           <CardContent className="p-4">
             <h5 className="font-semibold text-foreground mb-3">Route Legend</h5>
             <div className="space-y-2 text-sm">
               {routes.slice(0, 3).map((route, index) => {
-                const isFastest = routes.reduce((fastest, current) => 
+                const isFastest = routes.reduce((fastest, current) =>
                   current.duration < fastest.duration ? current : fastest
                 ).id === route.id;
-                
+
                 return (
                   <div key={route.id} className="flex items-center">
-                    <div className={`w-4 h-1 ${isFastest ? 'bg-green-500' : routeColors[index]?.color || 'bg-blue-500'} rounded mr-3`}></div>
+                    <div className={`w-4 h-1 ${isFastest ? 'bg-green-500' : index === 1 ? 'bg-blue-500' : 'bg-purple-500'} rounded mr-3`}></div>
                     <span className="text-muted-foreground">
-                      {isFastest ? 'Fastest' : routeColors[index]?.label || 'Alternative'} ({Math.round(route.duration / 60)}m)
+                      {isFastest ? 'Fastest' : index === 1 ? 'Alternative' : 'Via Highway'} ({Math.round(route.duration / 60)}m)
                     </span>
                   </div>
                 );

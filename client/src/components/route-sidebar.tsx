@@ -12,10 +12,12 @@ import { TransportModeSelector } from "./transport-mode-selector";
 import { RouteResults } from "./route-results";
 import { Sun, Moon, Monitor, Plus, Route, Crown } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { AddressPoint, RouteOption } from "@/store/route-slice";
 
 export function RouteSidebar() {
   const dispatch = useDispatch();
+  const { toast } = useToast();
   const { 
     startingPoint, 
     destinations, 
@@ -36,7 +38,7 @@ export function RouteSidebar() {
   const handleAddDestination = () => {
     dispatch(addDestination({
       address: '',
-      coordinates: [0, 0]
+      coordinates: [55.7558, 37.6176] // Moscow center - won't trigger map camera jump until geocoded
     }));
   };
 
@@ -71,67 +73,21 @@ export function RouteSidebar() {
   };
 
   const handleCalculateRoutes = async () => {
-    if (!startingPoint || !startingPoint.address || destinations.length === 0) {
-      dispatch(setError("Please set a starting point and at least one destination"));
+    if (!startingPoint || destinations.length === 0) {
+      toast({
+        title: "Недостаточно данных",
+        description: "Добавьте начальную точку и хотя бы один пункт назначения",
+        variant: "destructive",
+      });
       return;
     }
 
-    if (destinations.some(d => !d.address)) {
-      dispatch(setError("Please fill in all destination addresses"));
-      return;
-    }
-
-    dispatch(setCalculating(true));
-
-    try {
-      // First try to geocode addresses if they don't have coordinates
-      const geocodedStartingPoint = await geocodeIfNeeded(startingPoint);
-      const geocodedDestinations = await Promise.all(
-        destinations.map(dest => geocodeIfNeeded(dest))
-      );
-
-      const response = await apiRequest('POST', '/api/routes', {
-        startingPoint: geocodedStartingPoint,
-        destinations: geocodedDestinations,
-        transportMode
-      });
-
-      const data = await response.json();
-      
-      // Transform API response to RouteOption format
-      const routeOptions: RouteOption[] = [];
-      
-      data.routes.forEach((routeData: any, index: number) => {
-        if (routeData.routes && routeData.routes.length > 0) {
-          routeData.routes.forEach((route: any, routeIndex: number) => {
-            routeOptions.push({
-              id: `${index}-${routeIndex}`,
-              duration: route.duration?.value || 0,
-              distance: route.distance?.value || 0,
-              traffic: route.traffic_info?.level || 'light',
-              description: routeIndex === 0 ? 'Recommended' : 'Alternative',
-              geometry: route.geometry
-            });
-          });
-        }
-      });
-
-      dispatch(setRoutes(routeOptions));
-    } catch (error) {
-      console.error('Route calculation failed:', error);
-      // Create mock routes for demonstration if API fails
-      const mockRoutes: RouteOption[] = destinations.map((dest, index) => ({
-        id: `demo-${index}`,
-        duration: 1200 + Math.random() * 1800, // 20-50 minutes
-        distance: 5000 + Math.random() * 15000, // 5-20 km
-        traffic: ['light', 'moderate', 'heavy'][Math.floor(Math.random() * 3)] as any,
-        description: index === 0 ? 'Fastest Route' : `Alternative ${index}`,
-        geometry: null
-      }));
-      
-      dispatch(setRoutes(mockRoutes));
-      dispatch(setError('Route calculation using demo data (API unavailable)'));
-    }
+    // Calculation is now handled automatically by MapContainer component
+    // using Yandex Maps client-side routing API
+    toast({
+      title: "Расчет маршрутов",
+      description: "Маршруты рассчитываются автоматически на карте с помощью Yandex Maps API",
+    });
   };
 
   const getThemeIcon = () => {

@@ -1,13 +1,13 @@
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import { setSelectedRoute } from "@/store/route-slice";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Crown } from "lucide-react";
 
 export function RouteResults() {
-  const dispatch = useDispatch();
-  const { routes, selectedRouteId } = useSelector((state: RootState) => state.route);
+
+  const { routes } = useSelector((state: RootState) => state.route);
 
   if (routes.length === 0) {
     return (
@@ -34,8 +34,8 @@ export function RouteResults() {
     return `${(meters / 1000).toFixed(1)}km`;
   };
 
-  const getTrafficColor = (traffic: string) => {
-    switch (traffic) {
+  const getTrafficColor = (level: string) => {
+    switch (level) {
       case 'light': return 'text-green-600 dark:text-green-400';
       case 'moderate': return 'text-yellow-600 dark:text-yellow-400';
       case 'heavy': return 'text-red-600 dark:text-red-400';
@@ -53,7 +53,6 @@ export function RouteResults() {
       
       {routes.map((route, index) => {
         const isFastest = route.id === fastestRoute.id;
-        const isSelected = route.id === selectedRouteId;
         
         return (
           <Card
@@ -61,9 +60,7 @@ export function RouteResults() {
             className={`
               route-card 
               ${isFastest ? 'route-card-fastest' : ''}
-              ${isSelected ? 'ring-2 ring-primary' : ''}
             `}
-            onClick={() => dispatch(setSelectedRoute(route.id))}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
@@ -95,23 +92,19 @@ export function RouteResults() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Traffic:</span>
-                  <div className={`font-semibold capitalize ${getTrafficColor(route.traffic)}`}>
-                    {route.traffic}
+                  <div className={`font-semibold capitalize ${getTrafficColor(route.traffic_info.level)}`}>
+                    {route.traffic_info.level}
                   </div>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Cost:</span>
-                  <div className="font-semibold text-foreground">
-                    {route.cost || 'Free'}
+                  <span className="text-muted-foreground">Destination:</span>
+                  <div className="font-semibold text-foreground text-xs">
+                    {route.destination.address.length > 20 ? route.destination.address.substring(0, 20) + '...' : route.destination.address}
                   </div>
                 </div>
               </div>
               
-              {route.description && (
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {route.description}
-                </div>
-              )}
+
             </CardContent>
           </Card>
         );

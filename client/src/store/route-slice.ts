@@ -9,12 +9,15 @@ export interface AddressPoint {
 
 export interface RouteOption {
   id: string;
+  destination: AddressPoint;
   duration: number;
   distance: number;
-  traffic: 'light' | 'moderate' | 'heavy';
-  cost?: string;
-  description?: string;
-  geometry: any;
+  traffic_info: {
+    level: 'light' | 'moderate' | 'heavy';
+  };
+  geometry?: {
+    coordinates: [number, number][];
+  };
 }
 
 export interface RouteState {
@@ -22,7 +25,7 @@ export interface RouteState {
   destinations: AddressPoint[];
   transportMode: TransportMode;
   routes: RouteOption[];
-  selectedRouteId: string | null;
+
   isCalculating: boolean;
   error: string | null;
 }
@@ -32,7 +35,7 @@ const initialState: RouteState = {
   destinations: [],
   transportMode: 'walking',
   routes: [],
-  selectedRouteId: null,
+
   isCalculating: false,
   error: null,
 };
@@ -60,24 +63,15 @@ const routeSlice = createSlice({
     setTransportMode: (state, action: PayloadAction<TransportMode>) => {
       state.transportMode = action.payload;
       state.routes = [];
-      state.selectedRouteId = null;
       state.error = null;
     },
     setRoutes: (state, action: PayloadAction<RouteOption[]>) => {
       state.routes = action.payload;
-      // Automatically select the fastest route
-      if (action.payload.length > 0) {
-        const fastestRoute = action.payload.reduce((fastest, current) => 
-          current.duration < fastest.duration ? current : fastest
-        );
-        state.selectedRouteId = fastestRoute.id;
-      }
+
       state.isCalculating = false;
       state.error = null;
     },
-    setSelectedRoute: (state, action: PayloadAction<string>) => {
-      state.selectedRouteId = action.payload;
-    },
+
     setCalculating: (state, action: PayloadAction<boolean>) => {
       state.isCalculating = action.payload;
       if (action.payload) {
@@ -90,7 +84,7 @@ const routeSlice = createSlice({
     },
     clearRoutes: (state) => {
       state.routes = [];
-      state.selectedRouteId = null;
+
       state.error = null;
     },
   },
@@ -103,7 +97,6 @@ export const {
   updateDestination,
   setTransportMode,
   setRoutes,
-  setSelectedRoute,
   setCalculating,
   setError,
   clearRoutes,
