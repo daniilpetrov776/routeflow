@@ -1,7 +1,7 @@
 {
     "functions": {
       "api/index.ts": {
-        "runtime": "vercel-node@20"
+        "runtime": "vercel-node@22"
       }
     },
     "rewrites": [
