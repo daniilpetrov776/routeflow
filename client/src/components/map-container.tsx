@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { setRoutes, setCalculating } from "@/store/route-slice";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+// import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Minus, Crosshair } from "lucide-react";
 import type { AddressPoint, RouteOption } from "@/store/route-slice";
 
@@ -16,7 +16,7 @@ interface MapContainerProps {
 
 export function MapContainer({
   isLoaded,
-  routes,
+  // routes,
   startingPoint,
   destinations
 }: MapContainerProps) {
@@ -301,7 +301,7 @@ export function MapContainer({
         </Button>
       </div>
 
-      {routes.length > 0 && (
+      {/* {routes.length > 0 && (
         <Card className="absolute bottom-4 left-4 shadow-lg">
           <CardContent className="p-4">
             <h5 className="font-semibold text-foreground mb-3">Route Legend</h5>
@@ -323,7 +323,7 @@ export function MapContainer({
             </div>
           </CardContent>
         </Card>
-      )}
+      )} */}
     </div>
   );
 }

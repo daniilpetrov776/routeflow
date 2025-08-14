@@ -1,13 +1,18 @@
 {
-    "functions": {
-      "api/index.ts": {
-        "runtime": "vercel-node@18"
-      }
-    },
-    "rewrites": [
-      {
-        "source": "/api/(.*)",
-        "destination": "/api/index.ts"
-      }
-    ]
+  "version": 2,
+  "builds": [
+    {
+      "src": "index.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/index.ts"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
   }
+}
