@@ -13,7 +13,7 @@ export default function Home() {
   const { isLoaded } = useYandexMaps();
 
   useEffect(() => {
-    document.title = "Yandex Maps Route Planner";
+    document.title = "Планировщик маршрутов - Yandex Maps";
   }, []);
 
   return (

@@ -10,10 +10,10 @@ const transportModes: Array<{
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { mode: 'walking', label: 'Walk', icon: Footprints },
-  { mode: 'cycling', label: 'Bike', icon: Bike },
-  { mode: 'transit', label: 'Transit', icon: Bus },
-  { mode: 'driving', label: 'Car', icon: Car },
+  { mode: 'walking', label: 'Пешком', icon: Footprints },
+  { mode: 'cycling', label: 'Велосипед', icon: Bike },
+  { mode: 'transit', label: 'Общественный транспорт', icon: Bus },
+  { mode: 'driving', label: 'Автомобиль', icon: Car },
 ];
 
 export function TransportModeSelector() {
@@ -26,7 +26,7 @@ export function TransportModeSelector() {
   };
 
   return (
-    <div className="flex space-x-1 bg-muted rounded-lg p-1">
+    <div className="grid grid-cols-4 gap-1 bg-muted rounded-lg p-1">
       {transportModes.map(({ mode, label, icon: Icon }) => (
         <Button
           key={mode}
@@ -34,15 +34,15 @@ export function TransportModeSelector() {
           size="sm"
           onClick={() => handleModeChange(mode)}
           className={`
-            transport-mode-button
+            transport-mode-button min-w-0 px-2
             ${transportMode === mode 
               ? 'transport-mode-button-active' 
               : 'transport-mode-button-inactive'
             }
           `}
         >
-          <Icon className="h-4 w-4 mr-2" />
-          <span>{label}</span>
+          <Icon className="h-4 w-4 mr-1" />
+          <span className="text-xs truncate">{label}</span>
         </Button>
       ))}
     </div>

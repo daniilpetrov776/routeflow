@@ -12,10 +12,10 @@ export function RouteResults() {
   if (routes.length === 0) {
     return (
       <div className="p-4">
-        <h3 className="text-lg font-semibold text-foreground mb-3">Route Options</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Варианты маршрутов</h3>
         <div className="text-center py-8 text-muted-foreground">
           <div className="text-4xl mb-2">🗺️</div>
-          <p>Calculate routes to see options here</p>
+          <p>Рассчитайте маршруты, чтобы увидеть варианты</p>
         </div>
       </div>
     );
@@ -43,13 +43,22 @@ export function RouteResults() {
     }
   };
 
+  const getTrafficLabel = (level: string) => {
+    switch (level) {
+      case 'light': return 'Свободно';
+      case 'moderate': return 'Умеренно';
+      case 'heavy': return 'Плотно';
+      default: return level;
+    }
+  };
+
   const fastestRoute = routes.reduce((fastest, current) => 
     current.duration < fastest.duration ? current : fastest
   );
 
   return (
     <div className="p-4 space-y-3">
-      <h3 className="text-lg font-semibold text-foreground mb-3">Route Options</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-3">Варианты маршрутов</h3>
       
       {routes.map((route, index) => {
         const isFastest = route.id === fastestRoute.id;
@@ -67,11 +76,11 @@ export function RouteResults() {
                 <div className="flex items-center">
                   {isFastest && (
                     <Badge variant="secondary" className="bg-green-500 text-white mr-2">
-                      FASTEST
+                      БЫСТРЕЙШИЙ
                     </Badge>
                   )}
                   <span className="font-semibold text-foreground">
-                    Route {index + 1}
+                    Маршрут {index + 1}
                   </span>
                 </div>
                 {isFastest && <Crown className="h-4 w-4 text-yellow-500" />}
@@ -79,25 +88,25 @@ export function RouteResults() {
               
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Duration:</span>
+                  <span className="text-muted-foreground">Время:</span>
                   <div className="font-semibold text-foreground">
                     {formatDuration(route.duration)}
                   </div>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Distance:</span>
+                  <span className="text-muted-foreground">Расстояние:</span>
                   <div className="font-semibold text-foreground">
                     {formatDistance(route.distance)}
                   </div>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Traffic:</span>
+                  <span className="text-muted-foreground">Пробки:</span>
                   <div className={`font-semibold capitalize ${getTrafficColor(route.traffic_info.level)}`}>
-                    {route.traffic_info.level}
+                    {getTrafficLabel(route.traffic_info.level)}
                   </div>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Destination:</span>
+                  <span className="text-muted-foreground">Назначение:</span>
                   <div className="font-semibold text-foreground text-xs">
                     {route.destination.address.length > 20 ? route.destination.address.substring(0, 20) + '...' : route.destination.address}
                   </div>
