@@ -9,7 +9,7 @@ const app = express();
 app.use(cors({
   origin: process.env.NODE_ENV === "production" 
     ? process.env.CLIENT_URL || "https://your-client-domain.com"
-    : "http://localhost:3000",
+    : "http://localhost:5173",
   credentials: true
 }));
 

@@ -69,7 +69,7 @@ export function AddressInput({
 
     setIsLoading(true);
     try {
-      const response = await apiRequest('GET', `/api/suggest?text=${encodeURIComponent(query)}`);
+      const response = await apiRequest("GET", `/api/suggest?text=${encodeURIComponent(query)}`);
       const data = await response.json();
       
       const items: any[] = data.suggestions || [];
