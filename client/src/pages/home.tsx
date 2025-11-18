@@ -6,7 +6,7 @@ import { RouteSidebar } from "@/components/route-sidebar";
 import { useYandexMaps } from "@/hooks/use-yandex-maps";
 
 export default function Home() {
-  const { routes, startingPoint, destinations } = useSelector(
+  const { startingPoint, destinations } = useSelector(
     (state: RootState) => state.route
   );
   
@@ -21,7 +21,6 @@ export default function Home() {
       <RouteSidebar />
       <MapContainer 
         isLoaded={isLoaded}
-        routes={routes}
         startingPoint={startingPoint}
         destinations={destinations}
       />

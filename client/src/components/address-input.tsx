@@ -22,6 +22,51 @@ interface AddressInputProps {
   index?: number;
 }
 
+type GeocodedAddress = {
+  address: string;
+  coordinates: [number, number];
+};
+
+const parseCoordinate = (value?: string) => {
+  if (!value) return null;
+  const normalized = value.replace(",", ".").trim();
+  const numberValue = Number(normalized);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
+
+const parsePosString = (pos?: string): [number, number] | null => {
+  if (!pos) return null;
+  const [lonRaw, latRaw] = pos.split(" ");
+  const lon = parseCoordinate(lonRaw);
+  const lat = parseCoordinate(latRaw);
+  if (lon === null || lat === null) return null;
+  return [lat, lon];
+};
+
+const geocodeAddress = async (query: string): Promise<GeocodedAddress | null> => {
+  try {
+    const response = await apiRequest(
+      "GET",
+      `/api/geocode?address=${encodeURIComponent(query)}`
+    );
+    const data = await response.json();
+    const geoObject =
+      data.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
+    const coordinates = parsePosString(geoObject?.Point?.pos);
+    if (!coordinates) {
+      return null;
+    }
+    return {
+      address:
+        geoObject?.metaDataProperty?.GeocoderMetaData?.text?.trim() || query,
+      coordinates,
+    };
+  } catch (error) {
+    console.error("Geocode lookup failed:", error);
+    return null;
+  }
+};
+
 export function AddressInput({
   label,
   icon,
@@ -84,6 +129,7 @@ export function AddressInput({
 
       setSuggestions(mapped);
       setShowSuggestions(mapped.length > 0);
+      console.log(mapped)
     } catch (error) {
       console.error('Suggestions fetch failed:', error);
       setSuggestions([]);
@@ -100,19 +146,53 @@ export function AddressInput({
     debounceRef.current = setTimeout(() => fetchSuggestions(newValue), 300);
   };
 
-  const handleInputBlurAndSave = () => {
-    if (inputValue && inputValue !== value) {
-      const addressPoint: AddressPoint = {
-        address: inputValue,
-        coordinates: [0, 0]
-      };
+  const handleInputBlurAndSave = async () => {
+    const trimmedValue = inputValue.trim();
+    if (!trimmedValue || trimmedValue === value?.trim()) {
+      setTimeout(() => {
+        if (!inputRef.current?.matches(':focus')) {
+          setShowSuggestions(false);
+        }
+      }, 150);
+      return;
+    }
 
-      if (type === 'start') {
-        dispatch(setStartingPoint(addressPoint));
-      } else if (type === 'destination' && index !== undefined) {
-        dispatch(updateDestination({ index, destination: addressPoint }));
+    const matchedSuggestion = suggestions.find(
+      (suggestion) => suggestion.title === trimmedValue
+    );
+
+    let resolvedAddress = matchedSuggestion?.title || trimmedValue;
+    let coordinates = matchedSuggestion?.coordinates;
+
+    if (!coordinates) {
+      const geocoded = await geocodeAddress(trimmedValue);
+      if (geocoded) {
+        resolvedAddress = geocoded.address;
+        coordinates = geocoded.coordinates;
       }
     }
+
+    if (!coordinates) {
+      console.warn("Не удалось определить координаты для адреса:", trimmedValue);
+      setTimeout(() => {
+        if (!inputRef.current?.matches(':focus')) {
+          setShowSuggestions(false);
+        }
+      }, 150);
+      return;
+    }
+
+    const addressPoint: AddressPoint = {
+      address: resolvedAddress,
+      coordinates,
+    };
+
+    if (type === 'start') {
+      dispatch(setStartingPoint(addressPoint));
+    } else if (type === 'destination' && index !== undefined) {
+      dispatch(updateDestination({ index, destination: addressPoint }));
+    }
+
     setTimeout(() => {
       if (!inputRef.current?.matches(':focus')) {
         setShowSuggestions(false);
@@ -158,7 +238,7 @@ export function AddressInput({
           value={inputValue}
           onChange={handleInputChange}
           onFocus={() => inputValue.length >= 3 && setShowSuggestions(suggestions.length > 0)}
-          onBlur={handleInputBlurAndSave}
+          onBlur={() => { void handleInputBlurAndSave(); }}
           placeholder={placeholder}
           className="address-input flex-1"
         />

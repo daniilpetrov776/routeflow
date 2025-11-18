@@ -9,14 +9,12 @@ import type { AddressPoint, RouteOption } from "@/store/route-slice";
 
 interface MapContainerProps {
   isLoaded: boolean;
-  routes: RouteOption[];
   startingPoint: AddressPoint | null;
   destinations: AddressPoint[];
 }
 
 export function MapContainer({
   isLoaded,
-  // routes,
   startingPoint,
   destinations
 }: MapContainerProps) {
@@ -301,29 +299,6 @@ export function MapContainer({
         </Button>
       </div>
 
-      {/* {routes.length > 0 && (
-        <Card className="absolute bottom-4 left-4 shadow-lg">
-          <CardContent className="p-4">
-            <h5 className="font-semibold text-foreground mb-3">Route Legend</h5>
-            <div className="space-y-2 text-sm">
-              {routes.slice(0, 3).map((route, index) => {
-                const isFastest = routes.reduce((fastest, current) =>
-                  current.duration < fastest.duration ? current : fastest
-                ).id === route.id;
-
-                return (
-                  <div key={route.id} className="flex items-center">
-                    <div className={`w-4 h-1 ${isFastest ? 'bg-green-500' : index === 1 ? 'bg-blue-500' : 'bg-purple-500'} rounded mr-3`}></div>
-                    <span className="text-muted-foreground">
-                      {isFastest ? 'Fastest' : index === 1 ? 'Alternative' : 'Via Highway'} ({Math.round(route.duration / 60)}m)
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )} */}
     </div>
   );
 }
