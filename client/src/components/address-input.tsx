@@ -4,15 +4,11 @@ import { setStartingPoint, clearStartingPoint, updateDestination, removeDestinat
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { geocodeAddress } from "@/lib/geocoding";
+import { useAddressSuggestions, type Suggestion } from "@/hooks/useAddressSuggestions";
+import { AddressSuggestions } from "./address-suggestions";
 import type { AddressPoint } from "@/store/route-slice";
 import styles from "./address-input.module.css";
-
-interface Suggestion {
-  title: string;
-  subtitle: string;
-  coordinates: [number, number];
-}
 
 interface AddressInputProps {
   label?: string;
@@ -22,51 +18,6 @@ interface AddressInputProps {
   type: 'start' | 'destination';
   index?: number;
 }
-
-type GeocodedAddress = {
-  address: string;
-  coordinates: [number, number];
-};
-
-const parseCoordinate = (value?: string) => {
-  if (!value) return null;
-  const normalized = value.replace(",", ".").trim();
-  const numberValue = Number(normalized);
-  return Number.isFinite(numberValue) ? numberValue : null;
-};
-
-const parsePosString = (pos?: string): [number, number] | null => {
-  if (!pos) return null;
-  const [lonRaw, latRaw] = pos.split(" ");
-  const lon = parseCoordinate(lonRaw);
-  const lat = parseCoordinate(latRaw);
-  if (lon === null || lat === null) return null;
-  return [lat, lon];
-};
-
-const geocodeAddress = async (query: string): Promise<GeocodedAddress | null> => {
-  try {
-    const response = await apiRequest(
-      "GET",
-      `/api/geocode?address=${encodeURIComponent(query)}`
-    );
-    const data = await response.json();
-    const geoObject =
-      data.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
-    const coordinates = parsePosString(geoObject?.Point?.pos);
-    if (!coordinates) {
-      return null;
-    }
-    return {
-      address:
-        geoObject?.metaDataProperty?.GeocoderMetaData?.text?.trim() || query,
-      coordinates,
-    };
-  } catch (error) {
-    console.error("Geocode lookup failed:", error);
-    return null;
-  }
-};
 
 export function AddressInput({
   label,
@@ -78,13 +29,16 @@ export function AddressInput({
 }: AddressInputProps) {
   const dispatch = useDispatch();
   const [inputValue, setInputValue] = useState(value);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
-  // Исправлено: убран NodeJS, заменён на number для браузерного setTimeout
-  const debounceRef = useRef<number | null>(null);
+  
+  const {
+    suggestions,
+    showSuggestions,
+    isLoading,
+    fetchSuggestions,
+    setShowSuggestions,
+  } = useAddressSuggestions();
 
   useEffect(() => {
     setInputValue(value);
@@ -104,47 +58,12 @@ export function AddressInput({
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const fetchSuggestions = async (query: string) => {
-    if (query.length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await apiRequest("GET", `/api/suggest?text=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      
-      const items: any[] = data.suggestions || [];
-      const mapped: Suggestion[] = items.map(item => {
-        const [lon, lat] = item.coordinates || [0, 0];
-        return {
-          title: item.fullAddress || item.name || '',
-          subtitle: item.description || '',
-          coordinates: [lat, lon] as [number, number]
-        };
-      });
-
-      setSuggestions(mapped);
-      setShowSuggestions(mapped.length > 0);
-      console.log(mapped)
-    } catch (error) {
-      console.error('Suggestions fetch failed:', error);
-      setSuggestions([]);
-      setShowSuggestions(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [setShowSuggestions]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(newValue), 300);
+    fetchSuggestions(newValue);
   };
 
   const handleInputBlurAndSave = async () => {
@@ -260,34 +179,12 @@ export function AddressInput({
       </div>
 
       {showSuggestions && (
-        <div
-          ref={suggestionsRef}
-          className={styles["address-input__suggestions"]}
-        >
-          {isLoading ? (
-            <div className={styles["address-input__suggestion-item"]}>
-              <div className={styles["address-input__loading"]}>Загрузка предложений...</div>
-            </div>
-          ) : (
-            suggestions.map((suggestion, idx) => (
-              <div
-                key={idx}
-                onClick={() => handleSuggestionClick(suggestion)}
-                className={styles["address-input__suggestion-item"]}
-              >
-                <div className={styles["address-input__suggestion-content"]}>
-                  <span className={styles["address-input__suggestion-icon"]}>📍</span>
-                  <div>
-                    <div className={styles["address-input__suggestion-title"]}>{suggestion.title}</div>
-                    {suggestion.subtitle && (
-                      <div className={styles["address-input__suggestion-subtitle"]}>{suggestion.subtitle}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        <AddressSuggestions
+          suggestions={suggestions}
+          isLoading={isLoading}
+          onSuggestionClick={handleSuggestionClick}
+          suggestionsRef={suggestionsRef}
+        />
       )}
     </div>
   );

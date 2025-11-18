@@ -1,11 +1,16 @@
 /* Блок: map-container */
 .map-container {
   @apply flex-1 relative;
+  min-width: 0; /* Позволяет flex-элементу сжиматься */
+  width: 100%;
+  overflow: hidden; /* Предотвращает выход карты за границы */
 }
 
 .map-container__map {
   @apply w-full h-full bg-muted;
   min-height: 100%;
+  min-width: 0; /* Позволяет элементу сжиматься */
+  position: relative; /* Для корректной работы Yandex Maps */
 }
 
 .map-container__loading {
