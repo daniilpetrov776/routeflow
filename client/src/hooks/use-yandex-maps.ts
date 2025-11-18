@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiRequest } from '@/lib/queryClient';
 
 export function useYandexMaps() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -12,31 +13,50 @@ export function useYandexMaps() {
       return;
     }
 
-    const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY || '';
-    
-    if (!apiKey) {
-      setError('Yandex Maps API key not found. Please set VITE_YANDEX_MAPS_API_KEY environment variable.');
-      return;
-    }
+    // Получаем конфигурацию Yandex Maps с сервера
+    let script: HTMLScriptElement | null = null;
 
-    // Create script element
-    const script = document.createElement('script');
-    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU`;
-    script.async = true;
+    const loadYandexMaps = async () => {
+      try {
+        const response = await apiRequest('GET', '/api/yandex-maps/config');
+        const config = await response.json();
 
-    script.onload = () => {
-      setIsLoaded(true);
+        if (!config.scriptUrl) {
+          setError('Failed to get Yandex Maps configuration from server');
+          return;
+        }
+
+        // Create script element
+        script = document.createElement('script');
+        script.src = config.scriptUrl;
+        script.async = true;
+
+        script.onload = () => {
+          setIsLoaded(true);
+        };
+
+        script.onerror = () => {
+          setError('Failed to load Yandex Maps API');
+        };
+
+        document.head.appendChild(script);
+      } catch (err) {
+        console.error('Failed to load Yandex Maps config:', err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to load Yandex Maps configuration'
+        );
+      }
     };
 
-    script.onerror = () => {
-      setError('Failed to load Yandex Maps API');
-    };
-
-    document.head.appendChild(script);
+    loadYandexMaps();
 
     return () => {
-      // Cleanup script on unmount
-      document.head.removeChild(script);
+      // Cleanup: удаляем скрипт только если он еще не загружен
+      if (script && script.parentNode && !isLoaded) {
+        script.parentNode.removeChild(script);
+      }
     };
   }, []);
 

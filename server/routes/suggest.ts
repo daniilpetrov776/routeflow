@@ -1,4 +1,8 @@
 import type { Request, Response } from "express";
+import { z } from "zod";
+import { getYandexMapsApiKey } from "../lib/api-keys";
+import logger from "../lib/logger";
+import { suggestQuerySchema } from "../lib/validation-schemas";
 
 /**
  * Роут для получения предложений адресов через Yandex Maps API
@@ -6,18 +10,14 @@ import type { Request, Response } from "express";
 export function registerSuggestRoute(app: any) {
   app.get("/api/suggest", async (req: Request, res: Response) => {
     try {
-      const { text } = req.query;
-      const apiKey =
-        process.env.YANDEX_MAPS_API_KEY ||
-        process.env.VITE_YANDEX_MAPS_API_KEY ||
-        "";
+      // Валидируем query параметры
+      const validated = suggestQuerySchema.parse(req.query);
+      const { text } = validated;
 
-      if (!apiKey) {
-        throw new Error("Yandex Maps API key not configured");
-      }
+      const apiKey = getYandexMapsApiKey();
 
       const response = await fetch(
-        `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${encodeURIComponent(text as string)}&format=json&results=10&lang=ru_RU`
+        `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${encodeURIComponent(text)}&format=json&results=10&lang=ru_RU`
       );
 
       if (!response.ok) {
@@ -41,7 +41,23 @@ export function registerSuggestRoute(app: any) {
 
       res.json({ suggestions });
     } catch (error) {
-      console.error("Suggest error (via geocoder):", error);
+      // Обработка ошибок валидации
+      if (error instanceof z.ZodError) {
+        logger.warn("Suggest validation error:", {
+          errors: error.errors,
+          query: req.query,
+        });
+        return res.status(400).json({
+          error: "Некорректные параметры запроса",
+          details: error.errors.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        });
+      }
+
+      // Обработка других ошибок
+      logger.error("Suggest error (via geocoder):", error);
       res.status(500).json({
         error:
           error instanceof Error

@@ -21,7 +21,11 @@ export function TransportModeSelector() {
   const dispatch = useDispatch();
   const { transportMode } = useSelector((state: RootState) => state.route);
 
-  const handleModeChange = (mode: TransportMode) => {
+  const handleModeChange = (mode: TransportMode, e?: React.MouseEvent) => {
+    // Предотвращаем всплытие события, чтобы не открывать сайдбар на мобильных
+    if (e) {
+      e.stopPropagation();
+    }
     dispatch(setTransportMode(mode));
     dispatch(clearRoutes());
   };
@@ -33,7 +37,7 @@ export function TransportModeSelector() {
           key={mode}
           variant={transportMode === mode ? "default" : "ghost"}
           size="sm"
-          onClick={() => handleModeChange(mode)}
+          onClick={(e) => handleModeChange(mode, e)}
           className={`${styles["transport-mode-selector__button"]} ${transportMode === mode 
             ? styles["transport-mode-selector__button--active"] 
             : styles["transport-mode-selector__button--inactive"]

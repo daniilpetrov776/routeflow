@@ -52,9 +52,7 @@ export function useRouteCalculation({
     routesRef.current?.forEach(route => {
       yandexMapRef.current.geoObjects.remove(route);
     });
-    if (routesRef.current) {
-      routesRef.current = [];
-    }
+    routesRef.current?.splice(0, routesRef.current.length);
 
     // Подготавливаем массив результатов
     const routeResults: Array<RouteOption | null> = new Array(validDestinations.length).fill(null);

@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { z } from "zod";
 import { storage } from "../storage";
 import {
   calculateDistance,
@@ -6,6 +7,9 @@ import {
   formatDuration,
   formatDistance,
 } from "../lib/route-calculations";
+import { getYandexMapsApiKey } from "../lib/api-keys";
+import logger from "../lib/logger";
+import { routeRequestSchema } from "../lib/validation-schemas";
 
 /**
  * Роут для расчета маршрутов
@@ -13,15 +17,11 @@ import {
 export function registerRoutesRoute(app: any) {
   app.post("/api/routes", async (req: Request, res: Response) => {
     try {
-      const { startingPoint, destinations, transportMode } = req.body;
-      const apiKey =
-        process.env.YANDEX_MAPS_API_KEY ||
-        process.env.VITE_YANDEX_MAPS_API_KEY ||
-        "";
+      // Валидируем входные данные
+      const validated = routeRequestSchema.parse(req.body);
+      const { startingPoint, destinations, transportMode } = validated;
 
-      if (!apiKey) {
-        throw new Error("Yandex Maps API key not configured");
-      }
+      const apiKey = getYandexMapsApiKey();
 
       // Вычисляем маршруты на основе координат
       const routes = [];
@@ -96,14 +96,30 @@ export function registerRoutesRoute(app: any) {
       // Сохраняем расчет маршрута
       const route = await storage.createRoute({
         startingPoint: startingPoint.address,
-        destinations: destinations.map((d: any) => d.address),
+        destinations: destinations.map((d) => d.address),
         transportMode,
         routeData: routes,
       });
 
       res.json({ routes, routeId: route.id });
     } catch (error) {
-      console.error("Route calculation error:", error);
+      // Обработка ошибок валидации
+      if (error instanceof z.ZodError) {
+        logger.warn("Route calculation validation error:", {
+          errors: error.errors,
+          body: req.body,
+        });
+        return res.status(400).json({
+          error: "Некорректные данные запроса",
+          details: error.errors.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        });
+      }
+
+      // Обработка других ошибок
+      logger.error("Route calculation error:", error);
       res.status(500).json({
         error:
           error instanceof Error

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { AddressInput } from "./address-input";
@@ -26,25 +26,6 @@ export function RouteSidebar({ onOpenChange }: RouteSidebarProps) {
     routes,
     error,
   } = useSelector((state: RootState) => state.route);
-
-  // Отслеживаем, были ли уже маршруты, чтобы открыть sidebar только один раз
-  const hasHadRoutesRef = useRef(false);
-
-  // Автоматически открываем sidebar на мобильных при появлении первых маршрутов
-  useEffect(() => {
-    if (isMobile && routes.length > 0 && !hasHadRoutesRef.current) {
-      hasHadRoutesRef.current = true;
-      setIsOpen(true);
-      // Вызываем onOpenChange асинхронно, чтобы избежать обновления во время рендеринга
-      setTimeout(() => {
-        onOpenChange?.(true);
-      }, 0);
-    }
-    // Сбрасываем флаг, если маршруты очищены
-    if (routes.length === 0) {
-      hasHadRoutesRef.current = false;
-    }
-  }, [isMobile, routes.length, onOpenChange]);
 
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => {
