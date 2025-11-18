@@ -4,6 +4,7 @@ import { RootState } from "@/store";
 import { MapContainer } from "@/components/map-container";
 import { RouteSidebar } from "@/components/route-sidebar";
 import { useYandexMaps } from "@/hooks/use-yandex-maps";
+import styles from "./home.module.css";
 
 export default function Home() {
   const { startingPoint, destinations } = useSelector(
@@ -17,7 +18,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-900">
+    <div className={styles.home}>
       <RouteSidebar />
       <MapContainer 
         isLoaded={isLoaded}

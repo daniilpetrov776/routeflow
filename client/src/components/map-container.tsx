@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 // import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Minus, Crosshair } from "lucide-react";
 import type { AddressPoint, RouteOption } from "@/store/route-slice";
+import styles from "./map-container.module.css";
 
 interface MapContainerProps {
   isLoaded: boolean;
@@ -259,43 +260,44 @@ export function MapContainer({
   };
 
   return (
-    <div className="flex-1 relative">
-      <div ref={mapRef} className="w-full h-full bg-muted" style={{ minHeight: '100%' }} />
+    <div className={styles["map-container"]}>
+      <div ref={mapRef} className={styles["map-container__map"]} style={{ minHeight: '100%' }} />
 
       {!isLoaded && (
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 flex items-center justify-center">
-          <div className="text-center bg-card p-8 rounded-lg shadow-lg border">
-            <div className="text-6xl mb-4">🗺️</div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Interactive Map</h3>
-            <p className="text-muted-foreground mb-4">Map will display here once routes are calculated</p>
-            <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Starting Point</span>
-              <div className="w-2 h-2 bg-red-500 rounded-full ml-4"></div>
-              <span>Destinations</span>
+        <div className={styles["map-container__loading"]}>
+          <div className={styles["map-container__loading-content"]}>
+            <div className={styles["map-container__loading-icon"]}>🗺️</div>
+            <h3 className={styles["map-container__loading-title"]}>Interactive Map</h3>
+            <p className={styles["map-container__loading-description"]}>Map will display here once routes are calculated</p>
+            <div className={styles["map-container__loading-legend"]}>
+              <div className={`${styles["map-container__loading-legend-dot"]} ${styles["map-container__loading-legend-dot--green"]}`}></div>
+              <span className={styles["map-container__loading-legend-label"]}>Starting Point</span>
+              <div className={styles["map-container__loading-legend-spacer"]}></div>
+              <div className={`${styles["map-container__loading-legend-dot"]} ${styles["map-container__loading-legend-dot--red"]}`}></div>
+              <span className={styles["map-container__loading-legend-label"]}>Destinations</span>
             </div>
           </div>
         </div>
       )}
 
       {isCalculating && (
-        <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Calculating routes...</p>
+        <div className={styles["map-container__calculating"]}>
+          <div className={styles["map-container__calculating-content"]}>
+            <div className={styles["map-container__calculating-spinner"]}></div>
+            <p className={styles["map-container__calculating-text"]}>Calculating routes...</p>
           </div>
         </div>
       )}
 
-      <div className="absolute top-4 right-4 flex flex-col space-y-2">
-        <Button variant="outline" size="icon" onClick={handleZoomIn} className="bg-background border shadow-lg">
-          <Plus className="h-4 w-4" />
+      <div className={styles["map-container__controls"]}>
+        <Button variant="outline" size="icon" onClick={handleZoomIn} className={styles["map-container__control-button"]}>
+          <Plus className={styles["map-container__control-icon"]} />
         </Button>
-        <Button variant="outline" size="icon" onClick={handleZoomOut} className="bg-background border shadow-lg">
-          <Minus className="h-4 w-4" />
+        <Button variant="outline" size="icon" onClick={handleZoomOut} className={styles["map-container__control-button"]}>
+          <Minus className={styles["map-container__control-icon"]} />
         </Button>
-        <Button variant="outline" size="icon" onClick={handleCenter} className="bg-background border shadow-lg">
-          <Crosshair className="h-4 w-4" />
+        <Button variant="outline" size="icon" onClick={handleCenter} className={styles["map-container__control-button"]}>
+          <Crosshair className={styles["map-container__control-icon"]} />
         </Button>
       </div>
 

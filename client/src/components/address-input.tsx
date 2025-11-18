@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { AddressPoint } from "@/store/route-slice";
+import styles from "./address-input.module.css";
 
 interface Suggestion {
   title: string;
@@ -223,15 +224,15 @@ export function AddressInput({
   };
 
   return (
-    <div className="relative">
+    <div className={styles["address-input"]}>
       {label && (
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          {icon && <span className="mr-2">{icon}</span>}
+        <label className={styles["address-input__label"]}>
+          {icon && <span className={styles["address-input__label-icon"]}>{icon}</span>}
           {label}
         </label>
       )}
 
-      <div className="relative flex items-center space-x-2">
+      <div className={styles["address-input__wrapper"]}>
         <Input
           ref={inputRef}
           type="text"
@@ -240,7 +241,7 @@ export function AddressInput({
           onFocus={() => inputValue.length >= 3 && setShowSuggestions(suggestions.length > 0)}
           onBlur={() => { void handleInputBlurAndSave(); }}
           placeholder={placeholder}
-          className="address-input flex-1"
+          className={styles["address-input__input"]}
         />
 
         {type === 'destination' && (
@@ -248,9 +249,9 @@ export function AddressInput({
             variant="ghost"
             size="icon"
             onClick={handleRemove}
-            className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0"
+            className={styles["address-input__remove-button"]}
           >
-            <X className="h-4 w-4" />
+            <X className={styles["address-input__remove-icon"]} />
           </Button>
         )}
       </div>
@@ -258,25 +259,25 @@ export function AddressInput({
       {showSuggestions && (
         <div
           ref={suggestionsRef}
-          className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto"
+          className={styles["address-input__suggestions"]}
         >
           {isLoading ? (
-            <div className="suggestion-item">
-              <div className="animate-pulse">Загрузка предложений...</div>
+            <div className={styles["address-input__suggestion-item"]}>
+              <div className={styles["address-input__loading"]}>Загрузка предложений...</div>
             </div>
           ) : (
             suggestions.map((suggestion, idx) => (
               <div
                 key={idx}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="suggestion-item cursor-pointer p-2 hover:bg-accent"
+                className={styles["address-input__suggestion-item"]}
               >
-                <div className="flex items-center">
-                  <span className="mr-3">📍</span>
+                <div className={styles["address-input__suggestion-content"]}>
+                  <span className={styles["address-input__suggestion-icon"]}>📍</span>
                   <div>
-                    <div className="font-medium text-foreground">{suggestion.title}</div>
+                    <div className={styles["address-input__suggestion-title"]}>{suggestion.title}</div>
                     {suggestion.subtitle && (
-                      <div className="text-sm text-muted-foreground">{suggestion.subtitle}</div>
+                      <div className={styles["address-input__suggestion-subtitle"]}>{suggestion.subtitle}</div>
                     )}
                   </div>
                 </div>

@@ -1,0 +1,87 @@
+/* Блок: map-container */
+.map-container {
+  @apply flex-1 relative;
+}
+
+.map-container__map {
+  @apply w-full h-full bg-muted;
+  min-height: 100%;
+}
+
+.map-container__loading {
+  @apply absolute inset-0 bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center;
+}
+
+:global(.dark) .map-container__loading {
+  @apply from-blue-900 to-green-900;
+  opacity: 0.2;
+}
+
+.map-container__loading-content {
+  @apply text-center bg-card p-8 rounded-lg shadow-lg border;
+}
+
+.map-container__loading-icon {
+  @apply text-6xl mb-4;
+}
+
+.map-container__loading-title {
+  @apply text-lg font-semibold text-foreground mb-2;
+}
+
+.map-container__loading-description {
+  @apply text-muted-foreground mb-4;
+}
+
+.map-container__loading-legend {
+  @apply flex items-center justify-center space-x-2 text-sm text-muted-foreground;
+}
+
+.map-container__loading-legend-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.map-container__loading-legend-dot--green {
+  @apply bg-green-500;
+}
+
+.map-container__loading-legend-dot--red {
+  @apply bg-red-500;
+}
+
+.map-container__loading-legend-label {
+  /* Пустой блок для структуры */
+}
+
+.map-container__loading-legend-spacer {
+  @apply ml-4;
+}
+
+.map-container__calculating {
+  @apply absolute inset-0 bg-background opacity-80 flex items-center justify-center;
+}
+
+.map-container__calculating-content {
+  @apply text-center;
+}
+
+.map-container__calculating-spinner {
+  @apply animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4;
+}
+
+.map-container__calculating-text {
+  @apply text-muted-foreground;
+}
+
+.map-container__controls {
+  @apply absolute top-4 right-4 flex flex-col space-y-2;
+}
+
+.map-container__control-button {
+  @apply bg-background border shadow-lg;
+}
+
+.map-container__control-icon {
+  @apply h-4 w-4;
+}
+

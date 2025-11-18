@@ -4,6 +4,7 @@ import { setTransportMode, clearRoutes } from "@/store/route-slice";
 import { Button } from "@/components/ui/button";
 import { Footprints, Bike, Bus, Car } from "lucide-react";
 import type { TransportMode } from "@/store/route-slice";
+import styles from "./transport-mode-selector.module.css";
 
 const transportModes: Array<{
   mode: TransportMode;
@@ -26,23 +27,20 @@ export function TransportModeSelector() {
   };
 
   return (
-    <div className="grid grid-cols-4 gap-1 bg-muted rounded-lg p-1">
+    <div className={styles["transport-mode-selector"]}>
       {transportModes.map(({ mode, label, icon: Icon }) => (
         <Button
           key={mode}
           variant={transportMode === mode ? "default" : "ghost"}
           size="sm"
           onClick={() => handleModeChange(mode)}
-          className={`
-            transport-mode-button min-w-0 px-2
-            ${transportMode === mode 
-              ? 'transport-mode-button-active' 
-              : 'transport-mode-button-inactive'
-            }
-          `}
+          className={`${styles["transport-mode-selector__button"]} ${transportMode === mode 
+            ? styles["transport-mode-selector__button--active"] 
+            : styles["transport-mode-selector__button--inactive"]
+          }`}
         >
-          <Icon className="h-4 w-4 mr-1" />
-          <span className="text-xs truncate">{label}</span>
+          <Icon className={styles["transport-mode-selector__icon"]} />
+          <span className={styles["transport-mode-selector__label"]}>{label}</span>
         </Button>
       ))}
     </div>

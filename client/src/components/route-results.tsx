@@ -4,6 +4,7 @@ import { RootState } from "@/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Crown } from "lucide-react";
+import styles from "./route-results.module.css";
 
 export function RouteResults() {
 
@@ -11,10 +12,10 @@ export function RouteResults() {
 
   if (routes.length === 0) {
     return (
-      <div className="p-4">
-        <h3 className="text-lg font-semibold text-foreground mb-3">Варианты маршрутов</h3>
-        <div className="text-center py-8 text-muted-foreground">
-          <div className="text-4xl mb-2">🗺️</div>
+      <div className={styles["route-results__empty"]}>
+        <h3 className={styles["route-results__empty-title"]}>Варианты маршрутов</h3>
+        <div className={styles["route-results__empty-content"]}>
+          <div className={styles["route-results__empty-icon"]}>🗺️</div>
           <p>Рассчитайте маршруты, чтобы увидеть варианты</p>
         </div>
       </div>
@@ -36,10 +37,10 @@ export function RouteResults() {
 
   const getTrafficColor = (level: string) => {
     switch (level) {
-      case 'light': return 'text-green-600 dark:text-green-400';
-      case 'moderate': return 'text-yellow-600 dark:text-yellow-400';
-      case 'heavy': return 'text-red-600 dark:text-red-400';
-      default: return 'text-muted-foreground';
+      case 'light': return styles["route-results__card-field-value--green"];
+      case 'moderate': return styles["route-results__card-field-value--yellow"];
+      case 'heavy': return styles["route-results__card-field-value--red"];
+      default: return styles["route-results__card-field-value--muted"];
     }
   };
 
@@ -57,8 +58,8 @@ export function RouteResults() {
   );
 
   return (
-    <div className="p-4 space-y-3">
-      <h3 className="text-lg font-semibold text-foreground mb-3">Варианты маршрутов</h3>
+    <div className={styles["route-results"]}>
+      <h3 className={styles["route-results__title"]}>Варианты маршрутов</h3>
       
       {routes.map((route, index) => {
         const isFastest = route.id === fastestRoute.id;
@@ -66,48 +67,45 @@ export function RouteResults() {
         return (
           <Card
             key={route.id}
-            className={`
-              route-card 
-              ${isFastest ? 'route-card-fastest' : ''}
-            `}
+            className={`${styles["route-results__card"]} ${isFastest ? styles["route-results__card--fastest"] : ''}`}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
+            <CardContent className={styles["route-results__card-content"]}>
+              <div className={styles["route-results__card-header"]}>
+                <div className={styles["route-results__card-header-left"]}>
                   {isFastest && (
-                    <Badge variant="secondary" className="bg-green-500 text-white mr-2">
+                    <Badge variant="secondary" className={styles["route-results__card-badge"]}>
                       БЫСТРЕЙШИЙ
                     </Badge>
                   )}
-                  <span className="font-semibold text-foreground">
+                  <span className={styles["route-results__card-title"]}>
                     Маршрут {index + 1}
                   </span>
                 </div>
-                {isFastest && <Crown className="h-4 w-4 text-yellow-500" />}
+                {isFastest && <Crown className={styles["route-results__card-crown"]} />}
               </div>
               
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Время:</span>
-                  <div className="font-semibold text-foreground">
+              <div className={styles["route-results__card-grid"]}>
+                <div className={styles["route-results__card-field"]}>
+                  <span className={styles["route-results__card-field-label"]}>Время:</span>
+                  <div className={styles["route-results__card-field-value"]}>
                     {formatDuration(route.duration)}
                   </div>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Расстояние:</span>
-                  <div className="font-semibold text-foreground">
+                <div className={styles["route-results__card-field"]}>
+                  <span className={styles["route-results__card-field-label"]}>Расстояние:</span>
+                  <div className={styles["route-results__card-field-value"]}>
                     {formatDistance(route.distance)}
                   </div>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Пробки:</span>
-                  <div className={`font-semibold capitalize ${getTrafficColor(route.traffic_info.level)}`}>
+                <div className={styles["route-results__card-field"]}>
+                  <span className={styles["route-results__card-field-label"]}>Пробки:</span>
+                  <div className={`${styles["route-results__card-field-value"]} capitalize ${getTrafficColor(route.traffic_info.level)}`}>
                     {getTrafficLabel(route.traffic_info.level)}
                   </div>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Назначение:</span>
-                  <div className="font-semibold text-foreground text-xs">
+                <div className={styles["route-results__card-field"]}>
+                  <span className={styles["route-results__card-field-label"]}>Назначение:</span>
+                  <div className={`${styles["route-results__card-field-value"]} ${styles["route-results__card-field-value--small"]}`}>
                     {route.destination.address.length > 20 ? route.destination.address.substring(0, 20) + '...' : route.destination.address}
                   </div>
                 </div>
