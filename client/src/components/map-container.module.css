@@ -77,6 +77,52 @@
   @apply absolute top-4 right-4 flex flex-col space-y-2;
 }
 
+/* Мобильные устройства (до 768px) */
+@media (max-width: 768px) {
+  .map-container {
+    @apply h-full;
+  }
+
+  .map-container__controls {
+    @apply top-2 right-2 space-y-1.5;
+  }
+
+  .map-container__control-button {
+    @apply h-8 w-8;
+  }
+
+  .map-container__control-icon {
+    @apply h-3.5 w-3.5;
+  }
+
+  .map-container__loading-content {
+    @apply p-4;
+  }
+
+  .map-container__loading-icon {
+    @apply text-4xl mb-2;
+  }
+
+  .map-container__loading-title {
+    @apply text-base mb-1;
+  }
+
+  .map-container__loading-description {
+    @apply text-sm mb-2;
+  }
+
+  .map-container__loading-legend {
+    @apply text-xs;
+  }
+}
+
+/* Планшеты (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .map-container__controls {
+    @apply top-3 right-3;
+  }
+}
+
 .map-container__control-button {
   @apply bg-background border shadow-lg;
 }

@@ -91,3 +91,53 @@
   @apply font-semibold text-foreground text-xs;
 }
 
+/* Мобильные устройства (до 768px) */
+@media (max-width: 768px) {
+  .route-results {
+    @apply p-3 space-y-2;
+  }
+
+  .route-results__title {
+    @apply text-base mb-2;
+  }
+
+  .route-results__empty-title {
+    @apply text-base mb-2;
+  }
+
+  .route-results__empty-content {
+    @apply py-4;
+  }
+
+  .route-results__empty-icon {
+    @apply text-3xl mb-1;
+  }
+
+  .route-results__card-content {
+    @apply p-3;
+  }
+
+  .route-results__card-grid {
+    @apply grid-cols-1 gap-2;
+  }
+
+  .route-results__card-field-label {
+    @apply text-xs;
+  }
+
+  .route-results__card-field-value {
+    @apply text-sm;
+  }
+}
+
+/* Планшеты (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .route-results {
+    @apply p-3;
+  }
+
+  .route-results__card-content {
+    @apply p-3;
+  }
+}
+

@@ -1,5 +1,28 @@
 /* Блок: home */
 .home {
-  @apply h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-900;
+  @apply h-screen flex flex-row overflow-hidden bg-gray-50 dark:bg-gray-900;
+}
+
+/* Мобильные устройства (до 768px) */
+@media (max-width: 768px) {
+  .home {
+    @apply flex-col relative;
+    padding-bottom: 0;
+  }
+
+  .home__overlay {
+    @apply fixed inset-0 z-40;
+    background-color: hsl(var(--background) / 0.5);
+    display: none;
+  }
+
+  .home__overlay--visible {
+    display: block;
+  }
+}
+
+/* Планшеты (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Планшетные стили при необходимости */
 }
 

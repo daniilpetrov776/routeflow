@@ -23,3 +23,22 @@
   @apply text-xs truncate;
 }
 
+/* Мобильные устройства (до 768px) */
+@media (max-width: 768px) {
+  .transport-mode-selector {
+    @apply gap-0.5 p-0.5;
+  }
+
+  .transport-mode-selector__button {
+    @apply px-1;
+  }
+
+  .transport-mode-selector__icon {
+    @apply h-3.5 w-3.5 mr-0.5;
+  }
+
+  .transport-mode-selector__label {
+    @apply text-[10px];
+  }
+}
+

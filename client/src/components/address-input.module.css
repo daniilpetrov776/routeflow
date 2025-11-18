@@ -55,3 +55,26 @@
   @apply animate-pulse;
 }
 
+/* Мобильные устройства (до 768px) */
+@media (max-width: 768px) {
+  .address-input__label {
+    @apply text-xs mb-1.5;
+  }
+
+  .address-input__suggestions {
+    @apply max-h-48;
+  }
+
+  .address-input__suggestion-item {
+    @apply p-1.5;
+  }
+
+  .address-input__suggestion-title {
+    @apply text-sm;
+  }
+
+  .address-input__suggestion-subtitle {
+    @apply text-xs;
+  }
+}
+
