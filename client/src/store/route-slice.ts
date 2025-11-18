@@ -48,6 +48,10 @@ const routeSlice = createSlice({
       state.startingPoint = action.payload;
       state.error = null;
     },
+    clearStartingPoint: (state) => {
+      state.startingPoint = null;
+      state.error = null;
+    },
     addDestination: (state, action: PayloadAction<AddressPoint>) => {
       state.destinations.push(action.payload);
       state.error = null;
@@ -92,6 +96,7 @@ const routeSlice = createSlice({
 
 export const {
   setStartingPoint,
+  clearStartingPoint,
   addDestination,
   removeDestination,
   updateDestination,

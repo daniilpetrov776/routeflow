@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
-import { setStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
+import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -218,7 +218,10 @@ export function AddressInput({
   };
 
   const handleRemove = () => {
-    if (type === 'destination' && index !== undefined) {
+    if (type === 'start') {
+      dispatch(clearStartingPoint());
+      setInputValue('');
+    } else if (type === 'destination' && index !== undefined) {
       dispatch(removeDestination(index));
     }
   };
@@ -244,7 +247,7 @@ export function AddressInput({
           className={styles["address-input__input"]}
         />
 
-        {type === 'destination' && (
+        {((type === 'start' && value) || type === 'destination') && (
           <Button
             variant="ghost"
             size="icon"
