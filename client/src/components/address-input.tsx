@@ -1,17 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
-import { setStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
+import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { geocodeAddress } from "@/lib/geocoding";
+import { useAddressSuggestions, type Suggestion } from "@/hooks/useAddressSuggestions";
+import { AddressSuggestions } from "./address-suggestions";
 import type { AddressPoint } from "@/store/route-slice";
-
-interface Suggestion {
-  title: string;
-  subtitle: string;
-  coordinates: [number, number];
-}
+import styles from "./address-input.module.css";
 
 interface AddressInputProps {
   label?: string;
@@ -32,13 +29,16 @@ export function AddressInput({
 }: AddressInputProps) {
   const dispatch = useDispatch();
   const [inputValue, setInputValue] = useState(value);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
-  // Исправлено: убран NodeJS, заменён на number для браузерного setTimeout
-  const debounceRef = useRef<number | null>(null);
+  
+  const {
+    suggestions,
+    showSuggestions,
+    isLoading,
+    fetchSuggestions,
+    setShowSuggestions,
+  } = useAddressSuggestions();
 
   useEffect(() => {
     setInputValue(value);
@@ -58,61 +58,61 @@ export function AddressInput({
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const fetchSuggestions = async (query: string) => {
-    if (query.length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await apiRequest("GET", `/api/suggest?text=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      
-      const items: any[] = data.suggestions || [];
-      const mapped: Suggestion[] = items.map(item => {
-        const [lon, lat] = item.coordinates || [0, 0];
-        return {
-          title: item.fullAddress || item.name || '',
-          subtitle: item.description || '',
-          coordinates: [lat, lon] as [number, number]
-        };
-      });
-
-      setSuggestions(mapped);
-      setShowSuggestions(mapped.length > 0);
-    } catch (error) {
-      console.error('Suggestions fetch failed:', error);
-      setSuggestions([]);
-      setShowSuggestions(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [setShowSuggestions]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(newValue), 300);
+    fetchSuggestions(newValue);
   };
 
-  const handleInputBlurAndSave = () => {
-    if (inputValue && inputValue !== value) {
-      const addressPoint: AddressPoint = {
-        address: inputValue,
-        coordinates: [0, 0]
-      };
+  const handleInputBlurAndSave = async () => {
+    const trimmedValue = inputValue.trim();
+    if (!trimmedValue || trimmedValue === value?.trim()) {
+      setTimeout(() => {
+        if (!inputRef.current?.matches(':focus')) {
+          setShowSuggestions(false);
+        }
+      }, 150);
+      return;
+    }
 
-      if (type === 'start') {
-        dispatch(setStartingPoint(addressPoint));
-      } else if (type === 'destination' && index !== undefined) {
-        dispatch(updateDestination({ index, destination: addressPoint }));
+    const matchedSuggestion = suggestions.find(
+      (suggestion) => suggestion.title === trimmedValue
+    );
+
+    let resolvedAddress = matchedSuggestion?.title || trimmedValue;
+    let coordinates = matchedSuggestion?.coordinates;
+
+    if (!coordinates) {
+      const geocoded = await geocodeAddress(trimmedValue);
+      if (geocoded) {
+        resolvedAddress = geocoded.address;
+        coordinates = geocoded.coordinates;
       }
     }
+
+    if (!coordinates) {
+      console.warn("Не удалось определить координаты для адреса:", trimmedValue);
+      setTimeout(() => {
+        if (!inputRef.current?.matches(':focus')) {
+          setShowSuggestions(false);
+        }
+      }, 150);
+      return;
+    }
+
+    const addressPoint: AddressPoint = {
+      address: resolvedAddress,
+      coordinates,
+    };
+
+    if (type === 'start') {
+      dispatch(setStartingPoint(addressPoint));
+    } else if (type === 'destination' && index !== undefined) {
+      dispatch(updateDestination({ index, destination: addressPoint }));
+    }
+
     setTimeout(() => {
       if (!inputRef.current?.matches(':focus')) {
         setShowSuggestions(false);
@@ -137,73 +137,54 @@ export function AddressInput({
   };
 
   const handleRemove = () => {
-    if (type === 'destination' && index !== undefined) {
+    if (type === 'start') {
+      dispatch(clearStartingPoint());
+      setInputValue('');
+    } else if (type === 'destination' && index !== undefined) {
       dispatch(removeDestination(index));
     }
   };
 
   return (
-    <div className="relative">
+    <div className={styles["address-input"]}>
       {label && (
-        <label className="block text-sm font-medium text-muted-foreground mb-2">
-          {icon && <span className="mr-2">{icon}</span>}
+        <label className={styles["address-input__label"]}>
+          {icon && <span className={styles["address-input__label-icon"]}>{icon}</span>}
           {label}
         </label>
       )}
 
-      <div className="relative flex items-center space-x-2">
+      <div className={styles["address-input__wrapper"]}>
         <Input
           ref={inputRef}
           type="text"
           value={inputValue}
           onChange={handleInputChange}
           onFocus={() => inputValue.length >= 3 && setShowSuggestions(suggestions.length > 0)}
-          onBlur={handleInputBlurAndSave}
+          onBlur={() => { void handleInputBlurAndSave(); }}
           placeholder={placeholder}
-          className="address-input flex-1"
+          className={styles["address-input__input"]}
         />
 
-        {type === 'destination' && (
+        {((type === 'start' && value) || type === 'destination') && (
           <Button
             variant="ghost"
             size="icon"
             onClick={handleRemove}
-            className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0"
+            className={styles["address-input__remove-button"]}
           >
-            <X className="h-4 w-4" />
+            <X className={styles["address-input__remove-icon"]} />
           </Button>
         )}
       </div>
 
       {showSuggestions && (
-        <div
-          ref={suggestionsRef}
-          className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto"
-        >
-          {isLoading ? (
-            <div className="suggestion-item">
-              <div className="animate-pulse">Загрузка предложений...</div>
-            </div>
-          ) : (
-            suggestions.map((suggestion, idx) => (
-              <div
-                key={idx}
-                onClick={() => handleSuggestionClick(suggestion)}
-                className="suggestion-item cursor-pointer p-2 hover:bg-accent"
-              >
-                <div className="flex items-center">
-                  <span className="mr-3">📍</span>
-                  <div>
-                    <div className="font-medium text-foreground">{suggestion.title}</div>
-                    {suggestion.subtitle && (
-                      <div className="text-sm text-muted-foreground">{suggestion.subtitle}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        <AddressSuggestions
+          suggestions={suggestions}
+          isLoading={isLoading}
+          onSuggestionClick={handleSuggestionClick}
+          suggestionsRef={suggestionsRef}
+        />
       )}
     </div>
   );

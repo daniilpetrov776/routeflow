@@ -1,0 +1,29 @@
+/* Блок: not-found */
+.not-found {
+  @apply min-h-screen w-full flex items-center justify-center bg-gray-50;
+}
+
+.not-found__card {
+  @apply w-full max-w-md mx-4;
+}
+
+.not-found__content {
+  @apply pt-6;
+}
+
+.not-found__header {
+  @apply flex mb-4 gap-2;
+}
+
+.not-found__icon {
+  @apply h-8 w-8 text-red-500;
+}
+
+.not-found__title {
+  @apply text-2xl font-bold text-gray-900;
+}
+
+.not-found__description {
+  @apply mt-4 text-sm text-gray-600;
+}
+

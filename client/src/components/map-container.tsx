@@ -1,35 +1,36 @@
 import { useEffect, useRef } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import { setRoutes, setCalculating } from "@/store/route-slice";
-import { Button } from "@/components/ui/button";
-// import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Minus, Crosshair } from "lucide-react";
-import type { AddressPoint, RouteOption } from "@/store/route-slice";
+import { useRouteCalculation } from "@/hooks/useRouteCalculation";
+import { createAllMarkers } from "@/lib/map-markers";
+import { MapControls } from "./map-controls";
+import type { AddressPoint } from "@/store/route-slice";
+import styles from "./map-container.module.css";
 
 interface MapContainerProps {
   isLoaded: boolean;
-  routes: RouteOption[];
   startingPoint: AddressPoint | null;
   destinations: AddressPoint[];
 }
 
 export function MapContainer({
   isLoaded,
-  // routes,
   startingPoint,
   destinations
 }: MapContainerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const yandexMapRef = useRef<any>(null);
   const routesRef = useRef<any[]>([]);
-  const dispatch = useDispatch();
 
-  // 1. Новые хуки для динамической перекраски
   const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
   const { isCalculating, transportMode } = useSelector((state: RootState) => state.route);
 
-  // 2. Индекс самого быстрого маршрута
+  const { calculateRoutes } = useRouteCalculation({
+    yandexMapRef,
+    routesRef,
+  });
+
+  // Индекс самого быстрого маршрута
   const fastestIndex = calculatedRoutes.length > 0
     ? calculatedRoutes.reduce(
         (bestIdx, _, i) =>
@@ -40,7 +41,7 @@ export function MapContainer({
       )
     : 0;
 
-  // 3. Эффект для обновления стилей уже отрисованных маршрутов
+  // Эффект для обновления стилей уже отрисованных маршрутов
   useEffect(() => {
     if (!yandexMapRef.current) return;
 
@@ -49,7 +50,7 @@ export function MapContainer({
       multiRouteObj.options.set({
         routeActiveStrokeColor: isFastest ? '#28a745' : '#007bff',
         routeActiveStrokeWidth: isFastest ? 6 : 4,
-        opacity:                isFastest ? 1.0  : 0.7,
+        opacity: isFastest ? 1.0 : 0.7,
       });
     });
   }, [calculatedRoutes, fastestIndex]);
@@ -76,254 +77,87 @@ export function MapContainer({
     };
   }, [isLoaded]);
 
-  const calculateRoutes = async () => {
-    if (!yandexMapRef.current || !startingPoint) return;
-  
-    const validDestinations = destinations.filter(
-      d => d.address && d.address.trim() !== ''
-    );
-    if (validDestinations.length === 0) return;
-  
-    dispatch(setCalculating(true));
-  
-    // 1) Сначала очищаем старые маршруты
-    routesRef.current.forEach(route => {
-      yandexMapRef.current.geoObjects.remove(route);
-    });
-    routesRef.current = [];
-  
-    // 2) Подготавливаем массив результатов нужной длины
-    const routeResults: Array<RouteOption | null> = new Array(validDestinations.length).fill(null);
-    let completed = 0;
-  
-    for (let i = 0; i < validDestinations.length; i++) {
-      const destination = validDestinations[i];
-  
-      // Преобразуем transportMode в формат Yandex
-      let routingMode: "auto" | "pedestrian" | "bicycle" | "masstransit" = "auto";
-      switch (transportMode) {
-        case "walking":
-          routingMode = "pedestrian";
-          break;
-        case "cycling":
-          routingMode = "bicycle";
-          break;
-        case "transit":
-          routingMode = "masstransit";
-          break;
-        case "driving":
-        default:
-          routingMode = "auto";
-      }
-  
-      // 3) Создаем MultiRoute
-      // @ts-ignore
-      const route = new ymaps.multiRouter.MultiRoute(
-        {
-          referencePoints: [
-            startingPoint.coordinates,
-            destination.coordinates,
-          ],
-          params: {
-            routingMode,
-            avoidTrafficJams: true,
-          },
-        },
-        {
-          wayPointStartIconColor: "#28a745",
-          wayPointFinishIconColor: "#dc3545",
-          routeActiveStrokeColor: i === 0 ? "#28a745" : "#007bff",
-          routeActiveStrokeWidth: i === 0 ? 6 : 4,
-          opacity: i === 0 ? 1.0 : 0.7,
-        }
-      );
-  
-      // Добавляем маршрут на карту и в ref
-      yandexMapRef.current.geoObjects.add(route);
-      routesRef.current.push(route);
-  
-      // 4) Обработка успешного расчёта
-      route.model.events.add("requestsuccess", () => {
-        const activeRoute = route.getActiveRoute();
-        if (!activeRoute) return;
-  
-        // Формируем объект результата и сохраняем по индексу i
-        const opt: RouteOption = {
-          id: `route-${i}`,
-          destination,
-          duration: activeRoute.properties.get("duration")?.value || 0,
-          distance: activeRoute.properties.get("distance")?.value || 0,
-          traffic_info: {
-            level: activeRoute.properties.get("blocked") ? "heavy" : "light",
-          },
-          geometry: {
-            coordinates: [
-              startingPoint.coordinates,
-              destination.coordinates,
-            ],
-          },
-        };
-        routeResults[i] = opt;
-        completed++;
-  
-        // Когда все маршруты готовы — диспатчим и обновляем стили
-        if (completed === validDestinations.length) {
-          // 5) Сохраняем результаты в Redux
-          dispatch(setRoutes(routeResults as RouteOption[]));
-          dispatch(setCalculating(false));
-  
-          // 6) Локально выделяем самый быстрый маршрут без ожидания дополнительного render
-          const fastestIdx = (routeResults as RouteOption[]).reduce(
-            (best, _, idx, arr) =>
-              arr[idx].duration < arr[best].duration ? idx : best,
-            0
-          );
-  
-          routesRef.current.forEach((multi, idx) => {
-            multi.options.set({
-              routeActiveStrokeColor:
-                idx === fastestIdx ? "#28a745" : "#007bff",
-              routeActiveStrokeWidth: idx === fastestIdx ? 6 : 4,
-              opacity: idx === fastestIdx ? 1.0 : 0.7,
-            });
-          });
-        }
-      });
-  
-      // 7) Обработка ошибок расчёта
-      route.model.events.add("requestfail", () => {
-        console.error(`Failed to calculate route #${i}`);
-        // Если это последний по порядку запрос, снимаем состояние calculating
-        if (completed + 1 === validDestinations.length) {
-          dispatch(setCalculating(false));
-        }
-      });
-    }
-  
-    // 8) Подогнать границы карты под все маршруты
-    setTimeout(() => {
-      const bounds = yandexMapRef.current.geoObjects.getBounds();
-      if (bounds) {
-        yandexMapRef.current.setBounds(bounds, {
-          checkZoomRange: true,
-          zoomMargin: 50,
-        });
-      }
-    }, 1000);
-  };
 
   useEffect(() => {
     if (!yandexMapRef.current || !startingPoint) return;
 
+    // Очищаем все объекты на карте
     yandexMapRef.current.geoObjects.removeAll();
     routesRef.current = [];
 
-    // стартовый маркер
+    // Создаем маркеры
     // @ts-ignore
-    const startMarker = new ymaps.Placemark(
-      startingPoint.coordinates,
-      { balloonContent: `<strong>Начальная точка</strong><br/>${startingPoint.address}`, iconCaption: 'Старт' },
-      { preset: 'islands#greenCircleDotIconWithCaption', iconCaptionMaxWidth: '200' }
-    );
-    yandexMapRef.current.geoObjects.add(startMarker);
-
-    // маркеры для пунктов назначения
-    destinations.forEach((dest, index) => {
-      if (dest.address?.trim()) {
-        // @ts-ignore
-        const destMarker = new ymaps.Placemark(
-          dest.coordinates,
-          { balloonContent: `<strong>Пункт назначения ${index + 1}</strong><br/>${dest.address}`, iconCaption: `${index + 1}` },
-          { preset: 'islands#redCircleDotIconWithCaption', iconCaptionMaxWidth: '200' }
-        );
-        yandexMapRef.current.geoObjects.add(destMarker);
-      }
+    const markers = createAllMarkers(startingPoint, destinations, window.ymaps);
+    markers.forEach(marker => {
+      yandexMapRef.current.geoObjects.add(marker);
     });
 
-    // запустить расчёт, если есть валидные адреса
+    // Запускаем расчёт маршрутов, если есть валидные адреса
     const validDestinations = destinations.filter(d => d.address?.trim());
     if (validDestinations.length > 0) {
-      calculateRoutes();
+      calculateRoutes(startingPoint, validDestinations, transportMode);
     }
 
+    // Центрируем карту на начальной точке
     yandexMapRef.current.setCenter(startingPoint.coordinates, 12, { duration: 300 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startingPoint, destinations, transportMode]);
 
-  // Контролы зума и центровки
+  // Обработчики контролов карты
   const handleZoomIn = () => {
-    if (yandexMapRef.current) yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() + 1);
+    if (yandexMapRef.current) {
+      yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() + 1);
+    }
   };
+
   const handleZoomOut = () => {
-    if (yandexMapRef.current) yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() - 1);
+    if (yandexMapRef.current) {
+      yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() - 1);
+    }
   };
+
   const handleCenter = () => {
-    if (yandexMapRef.current && startingPoint) yandexMapRef.current.setCenter(startingPoint.coordinates);
+    if (yandexMapRef.current && startingPoint) {
+      yandexMapRef.current.setCenter(startingPoint.coordinates);
+    }
   };
 
   return (
-    <div className="flex-1 relative">
-      <div ref={mapRef} className="w-full h-full bg-muted" style={{ minHeight: '100%' }} />
+    <div className={styles["map-container"]}>
+      <div ref={mapRef} className={styles["map-container__map"]} style={{ minHeight: '100%' }} />
 
       {!isLoaded && (
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 flex items-center justify-center">
-          <div className="text-center bg-card p-8 rounded-lg shadow-lg border">
-            <div className="text-6xl mb-4">🗺️</div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Interactive Map</h3>
-            <p className="text-muted-foreground mb-4">Map will display here once routes are calculated</p>
-            <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Starting Point</span>
-              <div className="w-2 h-2 bg-red-500 rounded-full ml-4"></div>
-              <span>Destinations</span>
+        <div className={styles["map-container__loading"]}>
+          <div className={styles["map-container__loading-content"]}>
+            <div className={styles["map-container__loading-icon"]}>🗺️</div>
+            <h3 className={styles["map-container__loading-title"]}>Interactive Map</h3>
+            <p className={styles["map-container__loading-description"]}>Map will display here once routes are calculated</p>
+            <div className={styles["map-container__loading-legend"]}>
+              <div className={`${styles["map-container__loading-legend-dot"]} ${styles["map-container__loading-legend-dot--green"]}`}></div>
+              <span className={styles["map-container__loading-legend-label"]}>Starting Point</span>
+              <div className={styles["map-container__loading-legend-spacer"]}></div>
+              <div className={`${styles["map-container__loading-legend-dot"]} ${styles["map-container__loading-legend-dot--red"]}`}></div>
+              <span className={styles["map-container__loading-legend-label"]}>Destinations</span>
             </div>
           </div>
         </div>
       )}
 
       {isCalculating && (
-        <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Calculating routes...</p>
+        <div className={styles["map-container__calculating"]}>
+          <div className={styles["map-container__calculating-content"]}>
+            <div className={styles["map-container__calculating-spinner"]}></div>
+            <p className={styles["map-container__calculating-text"]}>Calculating routes...</p>
           </div>
         </div>
       )}
 
-      <div className="absolute top-4 right-4 flex flex-col space-y-2">
-        <Button variant="outline" size="icon" onClick={handleZoomIn} className="bg-background border shadow-lg">
-          <Plus className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" onClick={handleZoomOut} className="bg-background border shadow-lg">
-          <Minus className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" onClick={handleCenter} className="bg-background border shadow-lg">
-          <Crosshair className="h-4 w-4" />
-        </Button>
-      </div>
+      <MapControls
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onCenter={handleCenter}
+      />
 
-      {/* {routes.length > 0 && (
-        <Card className="absolute bottom-4 left-4 shadow-lg">
-          <CardContent className="p-4">
-            <h5 className="font-semibold text-foreground mb-3">Route Legend</h5>
-            <div className="space-y-2 text-sm">
-              {routes.slice(0, 3).map((route, index) => {
-                const isFastest = routes.reduce((fastest, current) =>
-                  current.duration < fastest.duration ? current : fastest
-                ).id === route.id;
-
-                return (
-                  <div key={route.id} className="flex items-center">
-                    <div className={`w-4 h-1 ${isFastest ? 'bg-green-500' : index === 1 ? 'bg-blue-500' : 'bg-purple-500'} rounded mr-3`}></div>
-                    <span className="text-muted-foreground">
-                      {isFastest ? 'Fastest' : index === 1 ? 'Alternative' : 'Via Highway'} ({Math.round(route.duration / 60)}m)
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )} */}
     </div>
   );
 }

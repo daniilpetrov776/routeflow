@@ -1,0 +1,143 @@
+/* Блок: route-results */
+.route-results {
+  @apply p-4 space-y-3;
+}
+
+.route-results__title {
+  @apply text-lg font-semibold text-foreground mb-3;
+}
+
+.route-results__empty {
+  @apply p-4;
+}
+
+.route-results__empty-title {
+  @apply text-lg font-semibold text-foreground mb-3;
+}
+
+.route-results__empty-content {
+  @apply text-center py-8 text-muted-foreground;
+}
+
+.route-results__empty-icon {
+  @apply text-4xl mb-2;
+}
+
+.route-results__card {
+  /* Базовые стили для карточки маршрута */
+}
+
+.route-results__card--fastest {
+  /* Модификатор для самого быстрого маршрута */
+}
+
+.route-results__card-content {
+  @apply p-5 !pt-5;
+}
+
+.route-results__card-header {
+  @apply flex items-center justify-between mb-4;
+}
+
+.route-results__card-header-left {
+  @apply flex items-center;
+}
+
+.route-results__card-badge {
+  @apply bg-green-500 text-white mr-2;
+}
+
+.route-results__card-title {
+  @apply font-semibold text-foreground;
+}
+
+.route-results__card-crown {
+  @apply h-4 w-4 text-yellow-500;
+}
+
+.route-results__card-grid {
+  @apply grid grid-cols-2 gap-5 text-sm;
+}
+
+.route-results__card-field {
+  @apply space-y-1;
+}
+
+.route-results__card-field-label {
+  @apply text-muted-foreground;
+}
+
+.route-results__card-field-value {
+  @apply font-semibold text-foreground;
+}
+
+.route-results__card-field-value--green {
+  @apply font-semibold text-green-600 dark:text-green-400;
+}
+
+.route-results__card-field-value--yellow {
+  @apply font-semibold text-yellow-600 dark:text-yellow-400;
+}
+
+.route-results__card-field-value--red {
+  @apply font-semibold text-red-600 dark:text-red-400;
+}
+
+.route-results__card-field-value--muted {
+  @apply font-semibold text-muted-foreground;
+}
+
+.route-results__card-field-value--small {
+  @apply font-semibold text-foreground text-xs;
+}
+
+/* Мобильные устройства (до 768px) */
+@media (max-width: 768px) {
+  .route-results {
+    @apply p-3 space-y-2;
+  }
+
+  .route-results__title {
+    @apply text-base mb-2;
+  }
+
+  .route-results__empty-title {
+    @apply text-base mb-2;
+  }
+
+  .route-results__empty-content {
+    @apply py-4;
+  }
+
+  .route-results__empty-icon {
+    @apply text-3xl mb-1;
+  }
+
+  .route-results__card-content {
+    @apply p-4 !pt-4;
+  }
+
+  .route-results__card-grid {
+    @apply grid-cols-1 gap-3;
+  }
+
+  .route-results__card-field-label {
+    @apply text-xs;
+  }
+
+  .route-results__card-field-value {
+    @apply text-sm;
+  }
+}
+
+/* Планшеты (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .route-results {
+    @apply p-3;
+  }
+
+  .route-results__card-content {
+    @apply p-4 !pt-4;
+  }
+}
+

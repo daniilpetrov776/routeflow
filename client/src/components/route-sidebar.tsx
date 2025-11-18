@@ -1,66 +1,93 @@
-import { useSelector, useDispatch } from "react-redux";
+import { useState, useRef, useCallback } from "react";
+import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import { setTheme } from "@/store/theme-slice";
-import { addDestination, } from "@/store/route-slice";
-import { Button } from "@/components/ui/button";
 import { AddressInput } from "./address-input";
-import { TransportModeSelector } from "./transport-mode-selector";
 import { RouteResults } from "./route-results";
-import { Sun, Moon, Monitor, Plus, } from "lucide-react";
+import { SidebarHeader } from "./sidebar-header";
+import { DestinationsSection } from "./destinations-section";
+import { RouteSummary } from "./route-summary";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useSwipeHandler } from "@/hooks/useSwipeHandler";
+import styles from "./route-sidebar.module.css";
 
-export function RouteSidebar() {
-  const dispatch = useDispatch();
-  const { 
-    startingPoint, 
-    destinations, 
+interface RouteSidebarProps {
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function RouteSidebar({ onOpenChange }: RouteSidebarProps) {
+  const isMobile = useIsMobile();
+  const [isOpen, setIsOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    startingPoint,
+    destinations,
     routes,
-    error 
+    error,
   } = useSelector((state: RootState) => state.route);
-  const { theme } = useSelector((state: RootState) => state.theme);
 
-  const handleThemeToggle = () => {
-    const themes = ['light', 'dark', 'system'] as const;
-    const currentIndex = themes.indexOf(theme);
-    const nextTheme = themes[(currentIndex + 1) % themes.length];
-    dispatch(setTheme(nextTheme));
-  };
+  const handleToggle = useCallback(() => {
+    setIsOpen((prev) => {
+      const newState = !prev;
 
-  const handleAddDestination = () => {
-    dispatch(addDestination({
-      address: '',
-      coordinates: [55.7558, 37.6176] // Moscow center - won't trigger map camera jump until geocoded
-    }));
-  };
+      // При закрытии sidebar сбрасываем позицию скролла в начало
+      if (!newState && sidebarRef.current) {
+        sidebarRef.current.scrollTop = 0;
+      }
 
-  const getThemeIcon = () => {
-    switch (theme) {
-      case 'light': return <Sun className="h-4 w-4" />;
-      case 'dark': return <Moon className="h-4 w-4" />;
-      default: return <Monitor className="h-4 w-4" />;
-    }
-  };
+      // Вызываем onOpenChange асинхронно, чтобы избежать обновления во время рендеринга
+      setTimeout(() => {
+        onOpenChange?.(newState);
+      }, 0);
+      return newState;
+    });
+  }, [onOpenChange]);
+
+  // Используем хук для обработки свайпов
+  useSwipeHandler({
+    isMobile,
+    isOpen,
+    sidebarRef,
+    headerRef,
+    onToggle: handleToggle,
+  });
+
+
+  const sidebarClassName = isMobile 
+    ? `${styles["route-sidebar"]} ${isOpen ? styles["route-sidebar--open"] : ""}`
+    : styles["route-sidebar"];
 
   return (
-    <div className="w-96 bg-card border-r border-border flex flex-col shadow-lg">
-      {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-semibold text-foreground">Планировщик маршрутов</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleThemeToggle}
-            className="h-9 w-9"
-          >
-            {getThemeIcon()}
-          </Button>
-        </div>
-        
-        <TransportModeSelector />
-      </div>
+    <div 
+      ref={sidebarRef}
+      className={sidebarClassName}
+    >
+      {/* Handle для мобильных устройств */}
+      {isMobile && (
+        <div 
+          className={styles["route-sidebar__handle"]}
+          onClick={handleToggle}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleToggle();
+            }
+          }}
+          aria-label={isOpen ? "Закрыть меню" : "Открыть меню"}
+        />
+      )}
+
+      <SidebarHeader
+        ref={headerRef}
+        isMobile={isMobile}
+        onToggle={handleToggle}
+      />
 
       {/* Address Inputs */}
-      <div className="p-4 space-y-4">
+      <div className={styles["route-sidebar__inputs"]}>
         <AddressInput
           label="Начальная точка"
           icon="📍"
@@ -69,64 +96,15 @@ export function RouteSidebar() {
           type="start"
         />
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-muted-foreground">
-              🏁 Пункты назначения
-            </label>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleAddDestination}
-              className="text-primary hover:text-primary/90"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Добавить
-            </Button>
-          </div>
-          
-          {destinations.map((destination, index) => (
-            <div key={index} className="mb-3">
-              <AddressInput
-                value={destination.address}
-                placeholder="Введите адрес назначения..."
-                type="destination"
-                index={index}
-              />
-            </div>
-          ))}
-        </div>
-
-        {error && (
-          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
-            {error}
-          </div>
-        )}
+        <DestinationsSection destinations={destinations} error={error} />
       </div>
 
       {/* Route Results */}
-      <div className="flex-1 overflow-y-auto">
+      <div className={styles["route-sidebar__results"]}>
         <RouteResults />
       </div>
 
-      {/* Summary Statistics */}
-      {routes.length > 0 && (
-        <div className="border-t border-border p-4 bg-muted/50">
-          <h4 className="font-semibold text-foreground mb-3">Сводная статистика</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{routes.length}</div>
-              <div className="text-muted-foreground">Найдено маршрутов</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-500">
-                {Math.min(...routes.map(r => Math.round(r.duration / 60)))}м
-              </div>
-              <div className="text-muted-foreground">Лучшее время</div>
-            </div>
-          </div>
-        </div>
-      )}
+      <RouteSummary routes={routes} />
     </div>
   );
 }

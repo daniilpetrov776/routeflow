@@ -1,0 +1,180 @@
+/* Блок: route-sidebar */
+.route-sidebar {
+  @apply w-96 bg-card border-r border-border flex flex-col shadow-lg;
+  transition: transform 0.3s ease-in-out;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0; /* Предотвращает сжатие сайдбара */
+}
+
+/* Мобильные устройства (до 768px) */
+@media (max-width: 768px) {
+  .route-sidebar {
+    @apply fixed bottom-0 left-0 right-0 w-full border-r-0 border-t border-b-0 rounded-t-2xl;
+    max-height: 85vh;
+    transform: translateY(calc(100% - 140px));
+    z-index: 50;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .route-sidebar--open {
+    transform: translateY(0) !important;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .route-sidebar__handle {
+    @apply w-12 h-1.5 rounded-full mx-auto mt-2 mb-2 cursor-pointer;
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+  }
+
+  .route-sidebar__handle:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  .route-sidebar__handle:active {
+    background-color: hsl(var(--muted-foreground) / 0.7);
+  }
+
+  .route-sidebar__header {
+    @apply p-3 flex-shrink-0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .route-sidebar__title {
+    @apply text-lg;
+  }
+
+  .route-sidebar__transport-selector {
+    @apply mt-2;
+    pointer-events: auto;
+  }
+
+  .route-sidebar__inputs {
+    @apply p-3 space-y-3;
+  }
+
+  .route-sidebar__summary {
+    @apply p-3;
+  }
+
+  .route-sidebar__summary-grid {
+    @apply gap-2;
+  }
+
+  .route-sidebar__summary-value {
+    @apply text-xl;
+  }
+
+  .route-sidebar__summary-value--green {
+    @apply text-xl;
+  }
+}
+
+/* Планшеты (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .route-sidebar {
+    @apply w-80;
+  }
+}
+
+.route-sidebar__header {
+  @apply p-4 border-b border-border;
+}
+
+.route-sidebar__header-top {
+  @apply flex items-center justify-between mb-4;
+}
+
+.route-sidebar__transport-selector {
+  /* Базовые стили для селектора транспорта */
+}
+
+.route-sidebar__title {
+  @apply text-xl font-semibold text-foreground;
+}
+
+.route-sidebar__theme-button {
+  @apply h-9 w-9;
+}
+
+.route-sidebar__theme-icon {
+  @apply h-4 w-4;
+}
+
+.route-sidebar__inputs {
+  @apply p-4 space-y-4;
+}
+
+.route-sidebar__destinations {
+  /* Пустой блок для структуры */
+}
+
+.route-sidebar__destinations-header {
+  @apply flex items-center justify-between mb-2;
+}
+
+.route-sidebar__destinations-label {
+  @apply block text-sm font-medium text-muted-foreground;
+}
+
+.route-sidebar__destinations-add-button {
+  @apply text-primary;
+}
+
+.route-sidebar__destinations-add-button:hover {
+  @apply text-primary;
+  opacity: 0.9;
+}
+
+.route-sidebar__destinations-add-icon {
+  @apply h-4 w-4 mr-1;
+}
+
+.route-sidebar__destinations-item {
+  @apply mb-3;
+}
+
+.route-sidebar__error {
+  @apply p-3 border rounded-lg text-sm text-destructive;
+  background-color: hsl(var(--destructive) / 0.1);
+  border-color: hsl(var(--destructive) / 0.2);
+}
+
+.route-sidebar__results {
+  @apply flex-1;
+}
+
+.route-sidebar__summary {
+  @apply border-t border-border p-4 bg-muted;
+  opacity: 0.5;
+}
+
+.route-sidebar__summary-title {
+  @apply font-semibold text-foreground mb-3;
+}
+
+.route-sidebar__summary-grid {
+  @apply grid grid-cols-2 gap-4 text-sm;
+}
+
+.route-sidebar__summary-item {
+  @apply text-center;
+}
+
+.route-sidebar__summary-value {
+  @apply text-2xl font-bold text-primary;
+}
+
+.route-sidebar__summary-value--green {
+  @apply text-2xl font-bold text-green-500;
+}
+
+.route-sidebar__summary-label {
+  @apply text-muted-foreground;
+}
+
