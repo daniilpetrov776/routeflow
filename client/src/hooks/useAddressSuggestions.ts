@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
+import { sanitizeText } from "@/lib/sanitize";
 
 export interface Suggestion {
   title: string;
@@ -39,8 +40,8 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
       const mapped: Suggestion[] = items.map(item => {
         const [lon, lat] = item.coordinates || [0, 0];
         return {
-          title: item.fullAddress || item.name || '',
-          subtitle: item.description || '',
+          title: sanitizeText(item.fullAddress || item.name || ''),
+          subtitle: sanitizeText(item.description || ''),
           coordinates: [lat, lon] as [number, number]
         };
       });

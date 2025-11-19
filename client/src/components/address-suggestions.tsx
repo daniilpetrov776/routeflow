@@ -1,4 +1,5 @@
 import type { Suggestion } from "@/hooks/useAddressSuggestions";
+import { sanitizeText } from "@/lib/sanitize";
 import styles from "./address-input.module.css";
 
 interface AddressSuggestionsProps {
@@ -50,11 +51,11 @@ export function AddressSuggestions({
             </span>
             <div>
               <div className={styles["address-input__suggestion-title"]}>
-                {suggestion.title}
+                {sanitizeText(suggestion.title)}
               </div>
               {suggestion.subtitle && (
                 <div className={styles["address-input__suggestion-subtitle"]}>
-                  {suggestion.subtitle}
+                  {sanitizeText(suggestion.subtitle)}
                 </div>
               )}
             </div>

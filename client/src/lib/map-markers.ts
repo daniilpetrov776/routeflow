@@ -1,4 +1,5 @@
 import type { AddressPoint } from "@/store/route-slice";
+import { sanitizeHtml } from "./sanitize";
 
 /**
  * Создает маркер начальной точки на карте Yandex Maps
@@ -11,7 +12,7 @@ export const createStartMarker = (
   return new yandexMaps.Placemark(
     startingPoint.coordinates,
     {
-      balloonContent: `<strong>Начальная точка</strong><br/>${startingPoint.address}`,
+      balloonContent: sanitizeHtml(`<strong>Начальная точка</strong><br/>${startingPoint.address}`),
       iconCaption: 'Старт'
     },
     {
@@ -33,7 +34,7 @@ export const createDestinationMarker = (
   return new yandexMaps.Placemark(
     destination.coordinates,
     {
-      balloonContent: `<strong>Пункт назначения ${index + 1}</strong><br/>${destination.address}`,
+      balloonContent: sanitizeHtml(`<strong>Пункт назначения ${index + 1}</strong><br/>${destination.address}`),
       iconCaption: `${index + 1}`
     },
     {
