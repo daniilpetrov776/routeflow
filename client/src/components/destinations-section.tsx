@@ -3,6 +3,7 @@ import { addDestination } from "@/store/route-slice";
 import { Button } from "@/components/ui/button";
 import { AddressInput } from "./address-input";
 import { Plus } from "lucide-react";
+import { MOSCOW_CENTER } from "@/lib/map-constants";
 import type { AddressPoint } from "@/store/route-slice";
 import styles from "./route-sidebar.module.css";
 
@@ -21,7 +22,7 @@ export function DestinationsSection({
     dispatch(
       addDestination({
         address: '',
-        coordinates: [55.7558, 37.6176], // Moscow center - won't trigger map camera jump until geocoded
+        coordinates: MOSCOW_CENTER, // Moscow center - won't trigger map camera jump until geocoded
       })
     );
   };

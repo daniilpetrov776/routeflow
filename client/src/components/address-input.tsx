@@ -6,6 +6,7 @@ import { useAddressSuggestions, type Suggestion } from "@/hooks/useAddressSugges
 import { AddressSuggestions } from "./address-suggestions";
 import { AddressInputLabel } from "./address-input-label";
 import { AddressInputWrapper } from "./address-input-wrapper";
+import { ADDRESS_SUGGESTIONS_HIDE_DELAY } from "@/lib/map-constants";
 import type { AddressPoint } from "@/store/route-slice";
 import styles from "./address-input.module.css";
 
@@ -72,7 +73,7 @@ export function AddressInput({
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
         }
-      }, 150);
+      }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
       return;
     }
 
@@ -97,7 +98,7 @@ export function AddressInput({
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
         }
-      }, 150);
+      }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
       return;
     }
 
@@ -116,7 +117,7 @@ export function AddressInput({
       if (!inputRef.current?.matches(':focus')) {
         setShowSuggestions(false);
       }
-    }, 150);
+    }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
   };
 
   const handleSuggestionClick = (suggestion: Suggestion) => {

@@ -6,6 +6,14 @@ import { createAllMarkers } from "@/lib/map-markers";
 import { MapControls } from "./map-controls";
 import { MapLoadingState } from "./map-loading-state";
 import { MapCalculatingState } from "./map-calculating-state";
+import {
+  DEFAULT_MAP_CENTER,
+  DEFAULT_MAP_ZOOM,
+  STARTING_POINT_ZOOM,
+  MAP_ANIMATION_DURATION,
+  ROUTE_COLORS,
+  ROUTE_STYLES,
+} from "@/lib/map-constants";
 import type { AddressPoint } from "@/store/route-slice";
 import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 import styles from "./map-container.module.css";
@@ -51,9 +59,9 @@ export function MapContainer({
     routesRef.current.forEach((multiRouteObj, idx) => {
       const isFastest = idx === fastestIndex;
       multiRouteObj.options.set({
-        routeActiveStrokeColor: isFastest ? '#28a745' : '#007bff',
-        routeActiveStrokeWidth: isFastest ? 6 : 4,
-        opacity: isFastest ? 1.0 : 0.7,
+        routeActiveStrokeColor: isFastest ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
+        routeActiveStrokeWidth: isFastest ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+        opacity: isFastest ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
       });
     });
   }, [calculatedRoutes, fastestIndex]);
@@ -64,8 +72,8 @@ export function MapContainer({
     const initMap = () => {
       if (window.ymaps && mapRef.current) {
         yandexMapRef.current = new window.ymaps.Map(mapRef.current, {
-          center: [55.76, 37.64],
-          zoom: 10,
+          center: DEFAULT_MAP_CENTER,
+          zoom: DEFAULT_MAP_ZOOM,
           controls: []
         });
       }
@@ -104,7 +112,9 @@ export function MapContainer({
     }
 
     // Центрируем карту на начальной точке
-    yandexMapRef.current.setCenter(startingPoint.coordinates, 12, { duration: 300 });
+    yandexMapRef.current.setCenter(startingPoint.coordinates, STARTING_POINT_ZOOM, {
+      duration: MAP_ANIMATION_DURATION,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startingPoint, destinations, transportMode]);
 

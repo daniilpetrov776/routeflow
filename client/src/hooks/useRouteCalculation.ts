@@ -2,6 +2,12 @@ import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { setRoutes, setCalculating } from "@/store/route-slice";
 import { showRouteError } from "@/lib/error-toast";
+import {
+  ROUTE_COLORS,
+  ROUTE_STYLES,
+  MAP_BOUNDS_ADJUSTMENT_DELAY,
+  MAP_ZOOM_MARGIN,
+} from "@/lib/map-constants";
 import type { AddressPoint, RouteOption, TransportMode } from "@/store/route-slice";
 import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 
@@ -106,11 +112,11 @@ export function useRouteCalculation({
           },
         },
         {
-          wayPointStartIconColor: "#28a745",
-          wayPointFinishIconColor: "#dc3545",
-          routeActiveStrokeColor: i === 0 ? "#28a745" : "#007bff",
-          routeActiveStrokeWidth: i === 0 ? 6 : 4,
-          opacity: i === 0 ? 1.0 : 0.7,
+          wayPointStartIconColor: ROUTE_COLORS.FASTEST,
+          wayPointFinishIconColor: ROUTE_COLORS.FINISH,
+          routeActiveStrokeColor: i === 0 ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
+          routeActiveStrokeWidth: i === 0 ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+          opacity: i === 0 ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
         }
       );
 
@@ -170,9 +176,9 @@ export function useRouteCalculation({
           routesRef.current?.forEach((multi, idx) => {
             multi.options.set({
               routeActiveStrokeColor:
-                idx === fastestIdx ? "#28a745" : "#007bff",
-              routeActiveStrokeWidth: idx === fastestIdx ? 6 : 4,
-              opacity: idx === fastestIdx ? 1.0 : 0.7,
+                idx === fastestIdx ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
+              routeActiveStrokeWidth: idx === fastestIdx ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+              opacity: idx === fastestIdx ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
             });
           });
 
@@ -183,10 +189,10 @@ export function useRouteCalculation({
             if (bounds && yandexMapRef.current) {
               yandexMapRef.current.setBounds(bounds, {
                 checkZoomRange: true,
-                zoomMargin: 50,
+                zoomMargin: MAP_ZOOM_MARGIN,
               });
             }
-          }, 1000);
+          }, MAP_BOUNDS_ADJUSTMENT_DELAY);
         }
       });
 
