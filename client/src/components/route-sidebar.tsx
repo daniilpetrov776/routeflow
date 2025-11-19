@@ -1,11 +1,6 @@
 import { useState, useRef, useCallback } from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
-import { AddressInput } from "./address-input";
-import { RouteResults } from "./route-results";
-import { SidebarHeader } from "./sidebar-header";
-import { DestinationsSection } from "./destinations-section";
-import { RouteSummary } from "./route-summary";
+import { RouteSidebarHandle } from "./route-sidebar-handle";
+import { RouteSidebarContent } from "./route-sidebar-content";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSwipeHandler } from "@/hooks/useSwipeHandler";
 import styles from "./route-sidebar.module.css";
@@ -19,13 +14,6 @@ export function RouteSidebar({ onOpenChange }: RouteSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-
-  const {
-    startingPoint,
-    destinations,
-    routes,
-    error,
-  } = useSelector((state: RootState) => state.route);
 
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => {
@@ -53,7 +41,6 @@ export function RouteSidebar({ onOpenChange }: RouteSidebarProps) {
     onToggle: handleToggle,
   });
 
-
   const sidebarClassName = isMobile 
     ? `${styles["route-sidebar"]} ${isOpen ? styles["route-sidebar--open"] : ""}`
     : styles["route-sidebar"];
@@ -63,48 +50,15 @@ export function RouteSidebar({ onOpenChange }: RouteSidebarProps) {
       ref={sidebarRef}
       className={sidebarClassName}
     >
-      {/* Handle для мобильных устройств */}
       {isMobile && (
-        <div 
-          className={styles["route-sidebar__handle"]}
-          onClick={handleToggle}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleToggle();
-            }
-          }}
-          aria-label={isOpen ? "Закрыть меню" : "Открыть меню"}
-        />
+        <RouteSidebarHandle isOpen={isOpen} onToggle={handleToggle} />
       )}
 
-      <SidebarHeader
-        ref={headerRef}
+      <RouteSidebarContent
+        headerRef={headerRef}
         isMobile={isMobile}
         onToggle={handleToggle}
       />
-
-      {/* Address Inputs */}
-      <div className={styles["route-sidebar__inputs"]}>
-        <AddressInput
-          label="Начальная точка"
-          icon="📍"
-          value={startingPoint?.address || ''}
-          placeholder="Введите начальный адрес..."
-          type="start"
-        />
-
-        <DestinationsSection destinations={destinations} error={error} />
-      </div>
-
-      {/* Route Results */}
-      <div className={styles["route-sidebar__results"]}>
-        <RouteResults />
-      </div>
-
-      <RouteSummary routes={routes} />
     </div>
   );
 }

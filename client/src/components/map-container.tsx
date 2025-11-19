@@ -4,7 +4,10 @@ import { RootState } from "@/store";
 import { useRouteCalculation } from "@/hooks/useRouteCalculation";
 import { createAllMarkers } from "@/lib/map-markers";
 import { MapControls } from "./map-controls";
+import { MapLoadingState } from "./map-loading-state";
+import { MapCalculatingState } from "./map-calculating-state";
 import type { AddressPoint } from "@/store/route-slice";
+import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 import styles from "./map-container.module.css";
 
 interface MapContainerProps {
@@ -19,8 +22,8 @@ export function MapContainer({
   destinations
 }: MapContainerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const yandexMapRef = useRef<any>(null);
-  const routesRef = useRef<any[]>([]);
+  const yandexMapRef = useRef<YandexMap | null>(null);
+  const routesRef = useRef<YandexMultiRoute[]>([]);
 
   const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
   const { isCalculating, transportMode } = useSelector((state: RootState) => state.route);
@@ -59,16 +62,18 @@ export function MapContainer({
     if (!isLoaded || !mapRef.current) return;
 
     const initMap = () => {
-      // @ts-ignore
-      yandexMapRef.current = new ymaps.Map(mapRef.current, {
-        center: [55.76, 37.64],
-        zoom: 10,
-        controls: []
-      });
+      if (window.ymaps && mapRef.current) {
+        yandexMapRef.current = new window.ymaps.Map(mapRef.current, {
+          center: [55.76, 37.64],
+          zoom: 10,
+          controls: []
+        });
+      }
     };
 
-    // @ts-ignore
-    if (window.ymaps) ymaps.ready(initMap);
+    if (window.ymaps) {
+      window.ymaps.ready(initMap);
+    }
 
     return () => {
       if (yandexMapRef.current) {
@@ -86,10 +91,10 @@ export function MapContainer({
     routesRef.current = [];
 
     // Создаем маркеры
-    // @ts-ignore
+    if (!window.ymaps) return;
     const markers = createAllMarkers(startingPoint, destinations, window.ymaps);
     markers.forEach(marker => {
-      yandexMapRef.current.geoObjects.add(marker);
+      yandexMapRef.current?.geoObjects.add(marker);
     });
 
     // Запускаем расчёт маршрутов, если есть валидные адреса
@@ -126,38 +131,15 @@ export function MapContainer({
     <div className={styles["map-container"]}>
       <div ref={mapRef} className={styles["map-container__map"]} style={{ minHeight: '100%' }} />
 
-      {!isLoaded && (
-        <div className={styles["map-container__loading"]}>
-          <div className={styles["map-container__loading-content"]}>
-            <div className={styles["map-container__loading-icon"]}>🗺️</div>
-            <h3 className={styles["map-container__loading-title"]}>Interactive Map</h3>
-            <p className={styles["map-container__loading-description"]}>Map will display here once routes are calculated</p>
-            <div className={styles["map-container__loading-legend"]}>
-              <div className={`${styles["map-container__loading-legend-dot"]} ${styles["map-container__loading-legend-dot--green"]}`}></div>
-              <span className={styles["map-container__loading-legend-label"]}>Starting Point</span>
-              <div className={styles["map-container__loading-legend-spacer"]}></div>
-              <div className={`${styles["map-container__loading-legend-dot"]} ${styles["map-container__loading-legend-dot--red"]}`}></div>
-              <span className={styles["map-container__loading-legend-label"]}>Destinations</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {!isLoaded && <MapLoadingState />}
 
-      {isCalculating && (
-        <div className={styles["map-container__calculating"]}>
-          <div className={styles["map-container__calculating-content"]}>
-            <div className={styles["map-container__calculating-spinner"]}></div>
-            <p className={styles["map-container__calculating-text"]}>Calculating routes...</p>
-          </div>
-        </div>
-      )}
+      {isCalculating && <MapCalculatingState />}
 
       <MapControls
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onCenter={handleCenter}
       />
-
     </div>
   );
 }

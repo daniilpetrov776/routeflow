@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { z } from "zod";
 import { storage } from "../storage";
 import {
   calculateDistance,
@@ -7,9 +6,8 @@ import {
   formatDuration,
   formatDistance,
 } from "../lib/route-calculations";
-import { getYandexMapsApiKey } from "../lib/api-keys";
-import logger from "../lib/logger";
 import { routeRequestSchema } from "../lib/validation-schemas";
+import { handleValidationError, handleError } from "../lib/error-handlers";
 
 /**
  * Роут для расчета маршрутов
@@ -20,8 +18,6 @@ export function registerRoutesRoute(app: any) {
       // Валидируем входные данные
       const validated = routeRequestSchema.parse(req.body);
       const { startingPoint, destinations, transportMode } = validated;
-
-      const apiKey = getYandexMapsApiKey();
 
       // Вычисляем маршруты на основе координат
       const routes = [];
@@ -104,28 +100,12 @@ export function registerRoutesRoute(app: any) {
       res.json({ routes, routeId: route.id });
     } catch (error) {
       // Обработка ошибок валидации
-      if (error instanceof z.ZodError) {
-        logger.warn("Route calculation validation error:", {
-          errors: error.errors,
-          body: req.body,
-        });
-        return res.status(400).json({
-          error: "Некорректные данные запроса",
-          details: error.errors.map((err) => ({
-            path: err.path.join("."),
-            message: err.message,
-          })),
-        });
+      if (handleValidationError(error, req, res, "Route calculation")) {
+        return;
       }
 
       // Обработка других ошибок
-      logger.error("Route calculation error:", error);
-      res.status(500).json({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Route calculation failed",
-      });
+      handleError(error, res, "Route calculation failed");
     }
   });
 }

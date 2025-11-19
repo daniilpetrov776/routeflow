@@ -1,11 +1,12 @@
-import { useRef, useCallback } from "react";
+import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { setRoutes, setCalculating } from "@/store/route-slice";
 import type { AddressPoint, RouteOption, TransportMode } from "@/store/route-slice";
+import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 
 interface UseRouteCalculationOptions {
-  yandexMapRef: React.RefObject<any>;
-  routesRef: React.RefObject<any[]>;
+  yandexMapRef: React.RefObject<YandexMap | null>;
+  routesRef: React.RefObject<YandexMultiRoute[]>;
 }
 
 /**
@@ -40,17 +41,27 @@ export function useRouteCalculation({
     transportMode: TransportMode
   ) => {
     if (!yandexMapRef.current || !startingPoint) return;
+    if (!window.ymaps) {
+      console.error("Yandex Maps API is not loaded");
+      return;
+    }
 
     const validDestinations = destinations.filter(
-      d => d.address && d.address.trim() !== ''
+      d => d.address && d.address.trim() !== '' && d.coordinates && d.coordinates.length === 2
     );
     if (validDestinations.length === 0) return;
+
+    // Проверяем координаты начальной точки
+    if (!startingPoint.coordinates || startingPoint.coordinates.length !== 2) {
+      console.error("Invalid starting point coordinates");
+      return;
+    }
 
     dispatch(setCalculating(true));
 
     // Очищаем старые маршруты
     routesRef.current?.forEach(route => {
-      yandexMapRef.current.geoObjects.remove(route);
+      yandexMapRef.current?.geoObjects.remove(route);
     });
     routesRef.current?.splice(0, routesRef.current.length);
 
@@ -63,8 +74,17 @@ export function useRouteCalculation({
     for (let i = 0; i < validDestinations.length; i++) {
       const destination = validDestinations[i];
 
+      // Проверяем координаты пункта назначения
+      if (!destination.coordinates || destination.coordinates.length !== 2) {
+        console.error(`Invalid destination coordinates for route #${i}`);
+        completed++;
+        if (completed === validDestinations.length) {
+          dispatch(setCalculating(false));
+        }
+        continue;
+      }
+
       // Создаем MultiRoute
-      // @ts-ignore
       const route = new window.ymaps.multiRouter.MultiRoute(
         {
           referencePoints: [
@@ -95,13 +115,25 @@ export function useRouteCalculation({
         if (!activeRoute) return;
 
         // Формируем объект результата
+        const durationProp = activeRoute.properties.get("duration");
+        const distanceProp = activeRoute.properties.get("distance");
+        const blockedProp = activeRoute.properties.get("blocked");
+        
+        const duration = (typeof durationProp === 'object' && durationProp !== null && 'value' in durationProp)
+          ? durationProp.value || 0
+          : 0;
+        const distance = (typeof distanceProp === 'object' && distanceProp !== null && 'value' in distanceProp)
+          ? distanceProp.value || 0
+          : 0;
+        const isBlocked = typeof blockedProp === 'boolean' ? blockedProp : false;
+
         const opt: RouteOption = {
           id: `route-${i}`,
           destination,
-          duration: activeRoute.properties.get("duration")?.value || 0,
-          distance: activeRoute.properties.get("distance")?.value || 0,
+          duration,
+          distance,
           traffic_info: {
-            level: activeRoute.properties.get("blocked") ? "heavy" : "light",
+            level: isBlocked ? "heavy" : "light",
           },
           geometry: {
             coordinates: [
@@ -137,8 +169,9 @@ export function useRouteCalculation({
 
           // Подгоняем границы карты под все маршруты
           setTimeout(() => {
+            if (!yandexMapRef.current) return;
             const bounds = yandexMapRef.current.geoObjects.getBounds();
-            if (bounds) {
+            if (bounds && yandexMapRef.current) {
               yandexMapRef.current.setBounds(bounds, {
                 checkZoomRange: true,
                 zoomMargin: 50,
@@ -150,8 +183,18 @@ export function useRouteCalculation({
 
       // Обработка ошибок расчёта
       route.model.events.add("requestfail", () => {
-        console.error(`Failed to calculate route #${i}`);
-        if (completed + 1 === validDestinations.length) {
+        console.error(`Failed to calculate route #${i}`, {
+          from: startingPoint.coordinates,
+          to: destination.coordinates,
+        });
+        completed++;
+        // Если все маршруты завершились (успешно или с ошибкой)
+        if (completed === validDestinations.length) {
+          // Сохраняем результаты, даже если некоторые маршруты не удалось рассчитать
+          const validResults = routeResults.filter((r): r is RouteOption => r !== null);
+          if (validResults.length > 0) {
+            dispatch(setRoutes(validResults));
+          }
           dispatch(setCalculating(false));
         }
       });

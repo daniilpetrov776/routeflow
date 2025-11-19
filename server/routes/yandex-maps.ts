@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import logger from "../lib/logger";
-import { getYandexMapsApiKey } from "../lib/api-keys";
+import { buildMapsScriptUrl } from "../lib/yandex-api";
+import { handleError } from "../lib/error-handlers";
 
 /**
  * Роут для получения конфигурации Yandex Maps API
@@ -9,21 +9,14 @@ import { getYandexMapsApiKey } from "../lib/api-keys";
 export function registerYandexMapsRoute(app: any) {
   app.get("/api/yandex-maps/config", async (req: Request, res: Response) => {
     try {
-      const apiKey = getYandexMapsApiKey();
-      const scriptUrl = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU`;
+      const scriptUrl = buildMapsScriptUrl();
 
       res.json({
         scriptUrl,
         lang: "ru_RU",
       });
     } catch (error) {
-      logger.error("Failed to get Yandex Maps config:", error);
-      res.status(500).json({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get Yandex Maps configuration",
-      });
+      handleError(error, res, "Failed to get Yandex Maps configuration");
     }
   });
 }

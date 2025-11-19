@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
 import { geocodeAddress } from "@/lib/geocoding";
 import { useAddressSuggestions, type Suggestion } from "@/hooks/useAddressSuggestions";
 import { AddressSuggestions } from "./address-suggestions";
+import { AddressInputLabel } from "./address-input-label";
+import { AddressInputWrapper } from "./address-input-wrapper";
 import type { AddressPoint } from "@/store/route-slice";
 import styles from "./address-input.module.css";
 
@@ -147,36 +146,21 @@ export function AddressInput({
 
   return (
     <div className={styles["address-input"]}>
-      {label && (
-        <label className={styles["address-input__label"]}>
-          {icon && <span className={styles["address-input__label-icon"]}>{icon}</span>}
-          {label}
-        </label>
-      )}
+      <AddressInputLabel label={label} icon={icon} />
 
-      <div className={styles["address-input__wrapper"]}>
-        <Input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={() => inputValue.length >= 3 && setShowSuggestions(suggestions.length > 0)}
-          onBlur={() => { void handleInputBlurAndSave(); }}
-          placeholder={placeholder}
-          className={styles["address-input__input"]}
-        />
-
-        {((type === 'start' && value) || type === 'destination') && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRemove}
-            className={styles["address-input__remove-button"]}
-          >
-            <X className={styles["address-input__remove-icon"]} />
-          </Button>
-        )}
-      </div>
+      <AddressInputWrapper
+        inputRef={inputRef}
+        value={value}
+        inputValue={inputValue}
+        placeholder={placeholder}
+        type={type}
+        showSuggestions={showSuggestions}
+        suggestionsLength={suggestions.length}
+        onInputChange={handleInputChange}
+        onInputFocus={() => setShowSuggestions(suggestions.length > 0)}
+        onInputBlur={() => { void handleInputBlurAndSave(); }}
+        onRemove={handleRemove}
+      />
 
       {showSuggestions && (
         <AddressSuggestions

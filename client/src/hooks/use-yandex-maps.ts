@@ -7,7 +7,6 @@ export function useYandexMaps() {
 
   useEffect(() => {
     // Check if Yandex Maps is already loaded
-    // @ts-ignore
     if (window.ymaps) {
       setIsLoaded(true);
       return;
