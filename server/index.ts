@@ -4,6 +4,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import requestLogger from "lib/requestLogger";
 import logger from "lib/logger";
+import { generalApiLimiter } from "./lib/rateLimiter";
 
 const app = express();
 
@@ -36,6 +37,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 app.use(requestLogger);
+
+// Применяем общий rate limiter для всех API запросов
+app.use("/api", generalApiLimiter);
 
 // Регистрируем роуты
 (async () => {
