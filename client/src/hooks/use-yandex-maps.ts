@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
+import { showMapLoadError } from '@/lib/error-toast';
 
 export function useYandexMaps() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -21,7 +22,9 @@ export function useYandexMaps() {
         const config = await response.json();
 
         if (!config.scriptUrl) {
-          setError('Failed to get Yandex Maps configuration from server');
+          const errorMessage = 'Не удалось получить конфигурацию Yandex Maps с сервера';
+          setError(errorMessage);
+          showMapLoadError(errorMessage);
           return;
         }
 
@@ -35,17 +38,19 @@ export function useYandexMaps() {
         };
 
         script.onerror = () => {
-          setError('Failed to load Yandex Maps API');
+          const errorMessage = 'Не удалось загрузить Yandex Maps API';
+          setError(errorMessage);
+          showMapLoadError(errorMessage);
         };
 
         document.head.appendChild(script);
       } catch (err) {
         console.error('Failed to load Yandex Maps config:', err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to load Yandex Maps configuration'
-        );
+        const errorMessage = err instanceof Error
+          ? err.message
+          : 'Не удалось загрузить конфигурацию Yandex Maps';
+        setError(errorMessage);
+        showMapLoadError(errorMessage);
       }
     };
 

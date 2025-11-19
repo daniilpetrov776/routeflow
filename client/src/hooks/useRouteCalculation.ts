@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { setRoutes, setCalculating } from "@/store/route-slice";
+import { showRouteError } from "@/lib/error-toast";
 import type { AddressPoint, RouteOption, TransportMode } from "@/store/route-slice";
 import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 
@@ -42,7 +43,10 @@ export function useRouteCalculation({
   ) => {
     if (!yandexMapRef.current || !startingPoint) return;
     if (!window.ymaps) {
-      console.error("Yandex Maps API is not loaded");
+      const errorMessage = "Yandex Maps API не загружен";
+      console.error(errorMessage);
+      showRouteError(errorMessage);
+      dispatch(setCalculating(false));
       return;
     }
 
@@ -53,7 +57,10 @@ export function useRouteCalculation({
 
     // Проверяем координаты начальной точки
     if (!startingPoint.coordinates || startingPoint.coordinates.length !== 2) {
-      console.error("Invalid starting point coordinates");
+      const errorMessage = "Некорректные координаты начальной точки";
+      console.error(errorMessage);
+      showRouteError(errorMessage);
+      dispatch(setCalculating(false));
       return;
     }
 
@@ -76,7 +83,9 @@ export function useRouteCalculation({
 
       // Проверяем координаты пункта назначения
       if (!destination.coordinates || destination.coordinates.length !== 2) {
-        console.error(`Invalid destination coordinates for route #${i}`);
+        const errorMessage = `Некорректные координаты пункта назначения #${i + 1}`;
+        console.error(errorMessage);
+        showRouteError(errorMessage);
         completed++;
         if (completed === validDestinations.length) {
           dispatch(setCalculating(false));
@@ -183,10 +192,14 @@ export function useRouteCalculation({
 
       // Обработка ошибок расчёта
       route.model.events.add("requestfail", () => {
-        console.error(`Failed to calculate route #${i}`, {
+        const errorMessage = `Не удалось рассчитать маршрут до пункта назначения #${i + 1}`;
+        console.error(errorMessage, {
           from: startingPoint.coordinates,
           to: destination.coordinates,
         });
+        
+        showRouteError(errorMessage);
+        
         completed++;
         // Если все маршруты завершились (успешно или с ошибкой)
         if (completed === validDestinations.length) {
@@ -194,6 +207,12 @@ export function useRouteCalculation({
           const validResults = routeResults.filter((r): r is RouteOption => r !== null);
           if (validResults.length > 0) {
             dispatch(setRoutes(validResults));
+          } else {
+            // Если ни один маршрут не был рассчитан, показываем общую ошибку
+            showRouteError(
+              "Не удалось рассчитать ни один маршрут. Проверьте корректность адресов.",
+              true
+            );
           }
           dispatch(setCalculating(false));
         }
