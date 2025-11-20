@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { useDispatch } from "react-redux";
 import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
 import { geocodeAddress } from "@/lib/geocoding";
@@ -19,18 +19,21 @@ interface AddressInputProps {
   index?: number;
 }
 
-export function AddressInput({
+export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(function AddressInput({
   label,
   icon,
   value,
   placeholder,
   type,
   index
-}: AddressInputProps) {
+}, ref) {
   const dispatch = useDispatch();
   const [inputValue, setInputValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  
+  // Синхронизируем внешний ref с внутренним
+  useImperativeHandle(ref, () => inputRef.current!, []);
   
   const {
     suggestions,
@@ -173,4 +176,4 @@ export function AddressInput({
       )}
     </div>
   );
-}
+});
