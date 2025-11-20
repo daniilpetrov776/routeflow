@@ -1,10 +1,21 @@
 import { useState, useRef, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
+import { sanitizeText } from "@/lib/sanitize";
 
 export interface Suggestion {
   title: string;
   subtitle: string;
   coordinates: [number, number];
+}
+
+/**
+ * Тип для данных предложения из API
+ */
+interface ApiSuggestion {
+  name?: string;
+  description?: string;
+  fullAddress?: string;
+  coordinates?: [number, number];
 }
 
 interface UseAddressSuggestionsOptions {
@@ -35,12 +46,12 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
       const response = await apiRequest("GET", `/api/suggest?text=${encodeURIComponent(query)}`);
       const data = await response.json();
       
-      const items: any[] = data.suggestions || [];
+      const items: ApiSuggestion[] = (data.suggestions || []) as ApiSuggestion[];
       const mapped: Suggestion[] = items.map(item => {
         const [lon, lat] = item.coordinates || [0, 0];
         return {
-          title: item.fullAddress || item.name || '',
-          subtitle: item.description || '',
+          title: sanitizeText(item.fullAddress || item.name || ''),
+          subtitle: sanitizeText(item.description || ''),
           coordinates: [lat, lon] as [number, number]
         };
       });

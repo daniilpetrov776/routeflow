@@ -4,6 +4,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import requestLogger from "lib/requestLogger";
 import logger from "lib/logger";
+import { generalApiLimiter } from "./lib/rateLimiter";
 
 const app = express();
 
@@ -37,12 +38,15 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use(requestLogger);
 
+// Применяем общий rate limiter для всех API запросов
+app.use("/api", generalApiLimiter);
+
 // Регистрируем роуты
 (async () => {
   const server = await registerRoutes(app);
 
   // централизованный error handler — теперь пишет через logger
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 

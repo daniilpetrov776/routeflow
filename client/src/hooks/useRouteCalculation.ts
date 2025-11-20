@@ -1,11 +1,19 @@
-import { useRef, useCallback } from "react";
+import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { setRoutes, setCalculating } from "@/store/route-slice";
+import { showRouteError } from "@/lib/error-toast";
+import {
+  ROUTE_COLORS,
+  ROUTE_STYLES,
+  MAP_BOUNDS_ADJUSTMENT_DELAY,
+  MAP_ZOOM_MARGIN,
+} from "@/lib/map-constants";
 import type { AddressPoint, RouteOption, TransportMode } from "@/store/route-slice";
+import type { YandexMap, YandexMultiRoute, RoutingParams, YandexEvent } from "@/types/yandex-maps";
 
 interface UseRouteCalculationOptions {
-  yandexMapRef: React.RefObject<any>;
-  routesRef: React.RefObject<any[]>;
+  yandexMapRef: React.RefObject<YandexMap | null>;
+  routesRef: React.RefObject<YandexMultiRoute[]>;
 }
 
 /**
@@ -40,17 +48,33 @@ export function useRouteCalculation({
     transportMode: TransportMode
   ) => {
     if (!yandexMapRef.current || !startingPoint) return;
+    if (!window.ymaps) {
+      const errorMessage = "Yandex Maps API не загружен";
+      console.error(errorMessage);
+      showRouteError(errorMessage);
+      dispatch(setCalculating(false));
+      return;
+    }
 
     const validDestinations = destinations.filter(
-      d => d.address && d.address.trim() !== ''
+      d => d.address && d.address.trim() !== '' && d.coordinates && d.coordinates.length === 2
     );
     if (validDestinations.length === 0) return;
+
+    // Проверяем координаты начальной точки
+    if (!startingPoint.coordinates || startingPoint.coordinates.length !== 2) {
+      const errorMessage = "Некорректные координаты начальной точки";
+      console.error(errorMessage);
+      showRouteError(errorMessage);
+      dispatch(setCalculating(false));
+      return;
+    }
 
     dispatch(setCalculating(true));
 
     // Очищаем старые маршруты
     routesRef.current?.forEach(route => {
-      yandexMapRef.current.geoObjects.remove(route);
+      yandexMapRef.current?.geoObjects.remove(route);
     });
     routesRef.current?.splice(0, routesRef.current.length);
 
@@ -63,25 +87,66 @@ export function useRouteCalculation({
     for (let i = 0; i < validDestinations.length; i++) {
       const destination = validDestinations[i];
 
+      // Проверяем координаты пункта назначения
+      if (!destination.coordinates || destination.coordinates.length !== 2) {
+        const errorMessage = `Некорректные координаты пункта назначения #${i + 1}`;
+        console.error(errorMessage);
+        showRouteError(errorMessage);
+        completed++;
+        if (completed === validDestinations.length) {
+          dispatch(setCalculating(false));
+        }
+        continue;
+      }
+
+      // Валидация координат: широта должна быть между -90 и 90, долгота между -180 и 180
+      const [startLat, startLon] = startingPoint.coordinates;
+      const [destLat, destLon] = destination.coordinates;
+      
+      if (
+        !Number.isFinite(startLat) || !Number.isFinite(startLon) ||
+        !Number.isFinite(destLat) || !Number.isFinite(destLon) ||
+        startLat < -90 || startLat > 90 ||
+        startLon < -180 || startLon > 180 ||
+        destLat < -90 || destLat > 90 ||
+        destLon < -180 || destLon > 180
+      ) {
+        const errorMessage = `Некорректные координаты для маршрута #${i + 1}. Проверьте адреса.`;
+        console.error(errorMessage, {
+          start: startingPoint.coordinates,
+          destination: destination.coordinates,
+        });
+        showRouteError(errorMessage);
+        completed++;
+        if (completed === validDestinations.length) {
+          dispatch(setCalculating(false));
+        }
+        continue;
+      }
+
       // Создаем MultiRoute
-      // @ts-ignore
+      // avoidTrafficJams работает только для режима "auto" (автомобиль)
+      const routeParams: RoutingParams = {
+        routingMode,
+      };
+      if (routingMode === "auto") {
+        routeParams.avoidTrafficJams = true;
+      }
+
       const route = new window.ymaps.multiRouter.MultiRoute(
         {
           referencePoints: [
             startingPoint.coordinates,
             destination.coordinates,
           ],
-          params: {
-            routingMode,
-            avoidTrafficJams: true,
-          },
+          params: routeParams,
         },
         {
-          wayPointStartIconColor: "#28a745",
-          wayPointFinishIconColor: "#dc3545",
-          routeActiveStrokeColor: i === 0 ? "#28a745" : "#007bff",
-          routeActiveStrokeWidth: i === 0 ? 6 : 4,
-          opacity: i === 0 ? 1.0 : 0.7,
+          wayPointStartIconColor: ROUTE_COLORS.FASTEST,
+          wayPointFinishIconColor: ROUTE_COLORS.FINISH,
+          routeActiveStrokeColor: i === 0 ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
+          routeActiveStrokeWidth: i === 0 ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+          opacity: i === 0 ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
         }
       );
 
@@ -91,17 +156,50 @@ export function useRouteCalculation({
 
       // Обработка успешного расчёта
       route.model.events.add("requestsuccess", () => {
-        const activeRoute = route.getActiveRoute();
-        if (!activeRoute) return;
+        // Пытаемся получить активный маршрут, если его нет - берем первый доступный
+        let activeRoute = route.getActiveRoute();
+        if (!activeRoute) {
+          const routes = route.model.getRoutes();
+          if (routes.length === 0) {
+            console.warn(`No routes available for destination #${i + 1}`);
+            completed++;
+            if (completed === validDestinations.length) {
+              const validResults = routeResults.filter((r): r is RouteOption => r !== null);
+              if (validResults.length > 0) {
+                dispatch(setRoutes(validResults));
+              } else {
+                showRouteError(
+                  "Не удалось рассчитать ни один маршрут. Проверьте корректность адресов.",
+                  true
+                );
+              }
+              dispatch(setCalculating(false));
+            }
+            return;
+          }
+          activeRoute = routes[0];
+        }
 
         // Формируем объект результата
+        const durationProp = activeRoute.properties.get("duration");
+        const distanceProp = activeRoute.properties.get("distance");
+        const blockedProp = activeRoute.properties.get("blocked");
+        
+        const duration = (typeof durationProp === 'object' && durationProp !== null && 'value' in durationProp)
+          ? durationProp.value || 0
+          : 0;
+        const distance = (typeof distanceProp === 'object' && distanceProp !== null && 'value' in distanceProp)
+          ? distanceProp.value || 0
+          : 0;
+        const isBlocked = typeof blockedProp === 'boolean' ? blockedProp : false;
+
         const opt: RouteOption = {
           id: `route-${i}`,
           destination,
-          duration: activeRoute.properties.get("duration")?.value || 0,
-          distance: activeRoute.properties.get("distance")?.value || 0,
+          duration,
+          distance,
           traffic_info: {
-            level: activeRoute.properties.get("blocked") ? "heavy" : "light",
+            level: isBlocked ? "heavy" : "light",
           },
           geometry: {
             coordinates: [
@@ -129,29 +227,72 @@ export function useRouteCalculation({
           routesRef.current?.forEach((multi, idx) => {
             multi.options.set({
               routeActiveStrokeColor:
-                idx === fastestIdx ? "#28a745" : "#007bff",
-              routeActiveStrokeWidth: idx === fastestIdx ? 6 : 4,
-              opacity: idx === fastestIdx ? 1.0 : 0.7,
+                idx === fastestIdx ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
+              routeActiveStrokeWidth: idx === fastestIdx ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+              opacity: idx === fastestIdx ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
             });
           });
 
           // Подгоняем границы карты под все маршруты
           setTimeout(() => {
+            if (!yandexMapRef.current) return;
             const bounds = yandexMapRef.current.geoObjects.getBounds();
-            if (bounds) {
+            if (bounds && yandexMapRef.current) {
               yandexMapRef.current.setBounds(bounds, {
                 checkZoomRange: true,
-                zoomMargin: 50,
+                zoomMargin: MAP_ZOOM_MARGIN,
               });
             }
-          }, 1000);
+          }, MAP_BOUNDS_ADJUSTMENT_DELAY);
         }
       });
 
       // Обработка ошибок расчёта
-      route.model.events.add("requestfail", () => {
-        console.error(`Failed to calculate route #${i}`);
-        if (completed + 1 === validDestinations.length) {
+      route.model.events.add("requestfail", (event?: YandexEvent) => {
+        const errorDetails = event?.get('error') || 'Unknown error';
+        const errorMessage = `Не удалось рассчитать маршрут до пункта назначения #${i + 1}`;
+        
+        console.error(errorMessage, {
+          from: startingPoint.coordinates,
+          to: destination.coordinates,
+          routingMode,
+          transportMode,
+          error: errorDetails,
+        });
+        
+        // Показываем ошибку только если это не временная проблема сети
+        // (retry логика должна обработать временные сбои)
+        const errorStr = typeof errorDetails === 'string' ? errorDetails : String(errorDetails);
+        if (errorStr.includes('network') || errorStr.includes('timeout')) {
+          console.warn(`Network error for route #${i + 1}, retry logic should handle this`);
+        } else {
+          // Для других ошибок показываем более информативное сообщение
+          const modeNames: Record<string, string> = {
+            'auto': 'автомобиль',
+            'pedestrian': 'пешком',
+            'bicycle': 'велосипед',
+            'masstransit': 'общественный транспорт',
+          };
+          const modeName = modeNames[routingMode] || transportMode;
+          showRouteError(
+            `${errorMessage} (режим: ${modeName}). Проверьте, доступен ли маршрут для выбранного режима транспорта.`
+          );
+        }
+        
+        completed++;
+        // Если все маршруты завершились (успешно или с ошибкой)
+        if (completed === validDestinations.length) {
+          // Сохраняем результаты, даже если некоторые маршруты не удалось рассчитать
+          const validResults = routeResults.filter((r): r is RouteOption => r !== null);
+          if (validResults.length > 0) {
+            dispatch(setRoutes(validResults));
+          } else {
+            // Если ни один маршрут не был рассчитан, показываем общую ошибку
+            showRouteError(
+              "Не удалось рассчитать ни один маршрут. Проверьте корректность адресов и режим транспорта.",
+              true
+            );
+          }
           dispatch(setCalculating(false));
         }
       });

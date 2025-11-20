@@ -6,7 +6,7 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_REMOVE_DELAY = 5000 // 5 секунд
 
 type ToasterToast = ToastProps & {
   id: string
@@ -139,8 +139,9 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+function toast({ duration, ...props }: Toast & { duration?: number }) {
   const id = genId()
+  const toastDuration = duration ?? TOAST_REMOVE_DELAY
 
   const update = (props: ToasterToast) =>
     dispatch({
@@ -160,6 +161,13 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  // Автоматическое скрытие через указанное время
+  if (toastDuration > 0) {
+    setTimeout(() => {
+      dismiss()
+    }, toastDuration)
+  }
 
   return {
     id: id,

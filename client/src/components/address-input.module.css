@@ -32,7 +32,11 @@
 }
 
 .address-input__suggestion-item {
-  @apply cursor-pointer p-2 hover:bg-accent;
+  @apply cursor-pointer p-2 hover:bg-accent transition-colors;
+}
+
+.address-input__suggestion-item--selected {
+  @apply bg-accent;
 }
 
 .address-input__suggestion-content {

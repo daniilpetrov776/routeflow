@@ -1,17 +1,18 @@
 import type { AddressPoint } from "@/store/route-slice";
+import { sanitizeHtml } from "./sanitize";
+import type { YandexPlacemark, YandexMapsNamespace } from "@/types/yandex-maps";
 
 /**
  * Создает маркер начальной точки на карте Yandex Maps
  */
 export const createStartMarker = (
   startingPoint: AddressPoint,
-  yandexMaps: any
-): any => {
-  // @ts-ignore
+  yandexMaps: YandexMapsNamespace
+): YandexPlacemark => {
   return new yandexMaps.Placemark(
     startingPoint.coordinates,
     {
-      balloonContent: `<strong>Начальная точка</strong><br/>${startingPoint.address}`,
+      balloonContent: sanitizeHtml(`<strong>Начальная точка</strong><br/>${startingPoint.address}`),
       iconCaption: 'Старт'
     },
     {
@@ -27,13 +28,12 @@ export const createStartMarker = (
 export const createDestinationMarker = (
   destination: AddressPoint,
   index: number,
-  yandexMaps: any
-): any => {
-  // @ts-ignore
+  yandexMaps: YandexMapsNamespace
+): YandexPlacemark => {
   return new yandexMaps.Placemark(
     destination.coordinates,
     {
-      balloonContent: `<strong>Пункт назначения ${index + 1}</strong><br/>${destination.address}`,
+      balloonContent: sanitizeHtml(`<strong>Пункт назначения ${index + 1}</strong><br/>${destination.address}`),
       iconCaption: `${index + 1}`
     },
     {
@@ -49,9 +49,9 @@ export const createDestinationMarker = (
 export const createAllMarkers = (
   startingPoint: AddressPoint | null,
   destinations: AddressPoint[],
-  yandexMaps: any
-): any[] => {
-  const markers: any[] = [];
+  yandexMaps: YandexMapsNamespace
+): YandexPlacemark[] => {
+  const markers: YandexPlacemark[] = [];
 
   if (startingPoint) {
     markers.push(createStartMarker(startingPoint, yandexMaps));

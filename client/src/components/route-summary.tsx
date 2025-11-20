@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { RouteOption } from "@/store/route-slice";
 import styles from "./route-sidebar.module.css";
 
@@ -6,11 +7,15 @@ interface RouteSummaryProps {
 }
 
 export function RouteSummary({ routes }: RouteSummaryProps) {
+  // Вычисляем лучшее время (мемоизировано для оптимизации)
+  const bestTime = useMemo(() => {
+    if (routes.length === 0) return 0;
+    return Math.min(...routes.map((r) => Math.round(r.duration / 60)));
+  }, [routes]);
+
   if (routes.length === 0) {
     return null;
   }
-
-  const bestTime = Math.min(...routes.map((r) => Math.round(r.duration / 60)));
 
   return (
     <div className={styles["route-sidebar__summary"]}>

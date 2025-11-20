@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { useDispatch } from "react-redux";
 import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
 import { geocodeAddress } from "@/lib/geocoding";
 import { useAddressSuggestions, type Suggestion } from "@/hooks/useAddressSuggestions";
 import { AddressSuggestions } from "./address-suggestions";
+import { AddressInputLabel } from "./address-input-label";
+import { AddressInputWrapper } from "./address-input-wrapper";
+import { ADDRESS_SUGGESTIONS_HIDE_DELAY } from "@/lib/map-constants";
 import type { AddressPoint } from "@/store/route-slice";
 import styles from "./address-input.module.css";
 
@@ -19,18 +19,23 @@ interface AddressInputProps {
   index?: number;
 }
 
-export function AddressInput({
+export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(function AddressInput({
   label,
   icon,
   value,
   placeholder,
   type,
   index
-}: AddressInputProps) {
+}, ref) {
   const dispatch = useDispatch();
   const [inputValue, setInputValue] = useState(value);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const skipBlurSaveRef = useRef(false); // Флаг для пропуска сохранения при blur
+  
+  // Синхронизируем внешний ref с внутренним
+  useImperativeHandle(ref, () => inputRef.current!, []);
   
   const {
     suggestions,
@@ -42,7 +47,15 @@ export function AddressInput({
 
   useEffect(() => {
     setInputValue(value);
+    setSelectedIndex(-1); // Сбрасываем выбор при изменении value извне
   }, [value]);
+
+  // Сбрасываем выбор при открытии/закрытии списка
+  useEffect(() => {
+    if (!showSuggestions) {
+      setSelectedIndex(-1);
+    }
+  }, [showSuggestions]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -63,17 +76,89 @@ export function AddressInput({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
+    setSelectedIndex(-1); // Сбрасываем выбор при изменении текста
     fetchSuggestions(newValue);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Escape обрабатываем всегда, независимо от наличия suggestions
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      
+      // Устанавливаем флаг, чтобы пропустить сохранение при blur
+      skipBlurSaveRef.current = true;
+      
+      // Для начальной точки - очищаем поле
+      if (type === 'start') {
+        dispatch(clearStartingPoint());
+        setInputValue('');
+        inputRef.current?.blur();
+        return;
+      }
+      
+      // Для destination - всегда удаляем поле при Escape
+      if (type === 'destination' && index !== undefined) {
+        dispatch(removeDestination(index));
+        // Не вызываем blur, так как поле будет удалено и компонент размонтируется
+        return;
+      }
+      
+      // Иначе просто сбрасываем фокус
+      inputRef.current?.blur();
+    }
+
+    // Остальные клавиши обрабатываем только если есть suggestions
+    if (!showSuggestions || suggestions.length === 0) {
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex((prev) => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          handleSuggestionClick(suggestions[selectedIndex]);
+        } else if (suggestions.length > 0) {
+          // Если ничего не выбрано, выбираем первый вариант
+          handleSuggestionClick(suggestions[0]);
+        }
+        break;
+      case 'Tab':
+        // Если список открыт и есть выбранный элемент, выбираем его перед переходом
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          e.preventDefault();
+          handleSuggestionClick(suggestions[selectedIndex]);
+        }
+        // Иначе позволяем Tab работать как обычно
+        break;
+    }
+  };
+
   const handleInputBlurAndSave = async () => {
+    // Пропускаем сохранение, если был вызван Escape
+    if (skipBlurSaveRef.current) {
+      skipBlurSaveRef.current = false;
+      return;
+    }
+
     const trimmedValue = inputValue.trim();
     if (!trimmedValue || trimmedValue === value?.trim()) {
       setTimeout(() => {
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
         }
-      }, 150);
+      }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
       return;
     }
 
@@ -93,12 +178,12 @@ export function AddressInput({
     }
 
     if (!coordinates) {
-      console.warn("Не удалось определить координаты для адреса:", trimmedValue);
+      // Не удалось определить координаты - просто закрываем список предложений
       setTimeout(() => {
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
         }
-      }, 150);
+      }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
       return;
     }
 
@@ -117,7 +202,7 @@ export function AddressInput({
       if (!inputRef.current?.matches(':focus')) {
         setShowSuggestions(false);
       }
-    }, 150);
+    }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
   };
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
@@ -128,6 +213,7 @@ export function AddressInput({
 
     setInputValue(suggestion.title);
     setShowSuggestions(false);
+    setSelectedIndex(-1);
 
     if (type === 'start') {
       dispatch(setStartingPoint(addressPoint));
@@ -147,36 +233,20 @@ export function AddressInput({
 
   return (
     <div className={styles["address-input"]}>
-      {label && (
-        <label className={styles["address-input__label"]}>
-          {icon && <span className={styles["address-input__label-icon"]}>{icon}</span>}
-          {label}
-        </label>
-      )}
+      <AddressInputLabel label={label} icon={icon} />
 
-      <div className={styles["address-input__wrapper"]}>
-        <Input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={() => inputValue.length >= 3 && setShowSuggestions(suggestions.length > 0)}
-          onBlur={() => { void handleInputBlurAndSave(); }}
-          placeholder={placeholder}
-          className={styles["address-input__input"]}
-        />
-
-        {((type === 'start' && value) || type === 'destination') && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRemove}
-            className={styles["address-input__remove-button"]}
-          >
-            <X className={styles["address-input__remove-icon"]} />
-          </Button>
-        )}
-      </div>
+      <AddressInputWrapper
+        inputRef={inputRef}
+        value={value}
+        inputValue={inputValue}
+        placeholder={placeholder}
+        type={type}
+        onInputChange={handleInputChange}
+        onInputKeyDown={handleKeyDown}
+        onInputFocus={() => setShowSuggestions(suggestions.length > 0)}
+        onInputBlur={() => { void handleInputBlurAndSave(); }}
+        onRemove={handleRemove}
+      />
 
       {showSuggestions && (
         <AddressSuggestions
@@ -184,8 +254,9 @@ export function AddressInput({
           isLoading={isLoading}
           onSuggestionClick={handleSuggestionClick}
           suggestionsRef={suggestionsRef}
+          selectedIndex={selectedIndex}
         />
       )}
     </div>
   );
-}
+});
