@@ -107,7 +107,6 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
       
       // Иначе просто сбрасываем фокус
       inputRef.current?.blur();
-      return;
     }
 
     // Остальные клавиши обрабатываем только если есть suggestions
@@ -179,7 +178,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     }
 
     if (!coordinates) {
-      console.warn("Не удалось определить координаты для адреса:", trimmedValue);
+      // Не удалось определить координаты - просто закрываем список предложений
       setTimeout(() => {
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
@@ -240,10 +239,8 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
         inputRef={inputRef}
         value={value}
         inputValue={inputValue}
-          placeholder={placeholder}
+        placeholder={placeholder}
         type={type}
-        showSuggestions={showSuggestions}
-        suggestionsLength={suggestions.length}
         onInputChange={handleInputChange}
         onInputKeyDown={handleKeyDown}
         onInputFocus={() => setShowSuggestions(suggestions.length > 0)}

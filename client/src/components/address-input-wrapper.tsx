@@ -9,8 +9,6 @@ interface AddressInputWrapperProps {
   inputValue: string;
   placeholder: string;
   type: 'start' | 'destination';
-  showSuggestions: boolean;
-  suggestionsLength: number;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onInputKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onInputFocus: () => void;
@@ -27,8 +25,6 @@ export function AddressInputWrapper({
   inputValue,
   placeholder,
   type,
-  showSuggestions,
-  suggestionsLength,
   onInputChange,
   onInputKeyDown,
   onInputFocus,

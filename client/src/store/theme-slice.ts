@@ -16,9 +16,16 @@ const getStoredTheme = (): Theme => {
   return stored || 'system';
 };
 
+const getInitialActualTheme = (theme: Theme): 'light' | 'dark' => {
+  if (theme === 'system') {
+    return getSystemTheme();
+  }
+  return theme;
+};
+
 const initialState: ThemeState = {
   theme: getStoredTheme(),
-  actualTheme: getSystemTheme(),
+  actualTheme: getInitialActualTheme(getStoredTheme()),
 };
 
 const themeSlice = createSlice({
@@ -35,13 +42,8 @@ const themeSlice = createSlice({
         state.actualTheme = action.payload;
       }
     },
-    updateSystemTheme: (state) => {
-      if (state.theme === 'system') {
-        state.actualTheme = getSystemTheme();
-      }
-    },
   },
 });
 
-export const { setTheme, updateSystemTheme } = themeSlice.actions;
+export const { setTheme } = themeSlice.actions;
 export default themeSlice.reducer;
