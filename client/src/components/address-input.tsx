@@ -29,8 +29,10 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
 }, ref) {
   const dispatch = useDispatch();
   const [inputValue, setInputValue] = useState(value);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const skipBlurSaveRef = useRef(false); // Флаг для пропуска сохранения при blur
   
   // Синхронизируем внешний ref с внутренним
   useImperativeHandle(ref, () => inputRef.current!, []);
@@ -45,7 +47,15 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
 
   useEffect(() => {
     setInputValue(value);
+    setSelectedIndex(-1); // Сбрасываем выбор при изменении value извне
   }, [value]);
+
+  // Сбрасываем выбор при открытии/закрытии списка
+  useEffect(() => {
+    if (!showSuggestions) {
+      setSelectedIndex(-1);
+    }
+  }, [showSuggestions]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -66,10 +76,83 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
+    setSelectedIndex(-1); // Сбрасываем выбор при изменении текста
     fetchSuggestions(newValue);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Escape обрабатываем всегда, независимо от наличия suggestions
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      
+      // Устанавливаем флаг, чтобы пропустить сохранение при blur
+      skipBlurSaveRef.current = true;
+      
+      // Для начальной точки - очищаем поле
+      if (type === 'start') {
+        dispatch(clearStartingPoint());
+        setInputValue('');
+        inputRef.current?.blur();
+        return;
+      }
+      
+      // Для destination - всегда удаляем поле при Escape
+      if (type === 'destination' && index !== undefined) {
+        dispatch(removeDestination(index));
+        // Не вызываем blur, так как поле будет удалено и компонент размонтируется
+        return;
+      }
+      
+      // Иначе просто сбрасываем фокус
+      inputRef.current?.blur();
+      return;
+    }
+
+    // Остальные клавиши обрабатываем только если есть suggestions
+    if (!showSuggestions || suggestions.length === 0) {
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex((prev) => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          handleSuggestionClick(suggestions[selectedIndex]);
+        } else if (suggestions.length > 0) {
+          // Если ничего не выбрано, выбираем первый вариант
+          handleSuggestionClick(suggestions[0]);
+        }
+        break;
+      case 'Tab':
+        // Если список открыт и есть выбранный элемент, выбираем его перед переходом
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          e.preventDefault();
+          handleSuggestionClick(suggestions[selectedIndex]);
+        }
+        // Иначе позволяем Tab работать как обычно
+        break;
+    }
+  };
+
   const handleInputBlurAndSave = async () => {
+    // Пропускаем сохранение, если был вызван Escape
+    if (skipBlurSaveRef.current) {
+      skipBlurSaveRef.current = false;
+      return;
+    }
+
     const trimmedValue = inputValue.trim();
     if (!trimmedValue || trimmedValue === value?.trim()) {
       setTimeout(() => {
@@ -131,6 +214,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
 
     setInputValue(suggestion.title);
     setShowSuggestions(false);
+    setSelectedIndex(-1);
 
     if (type === 'start') {
       dispatch(setStartingPoint(addressPoint));
@@ -161,6 +245,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
         showSuggestions={showSuggestions}
         suggestionsLength={suggestions.length}
         onInputChange={handleInputChange}
+        onInputKeyDown={handleKeyDown}
         onInputFocus={() => setShowSuggestions(suggestions.length > 0)}
         onInputBlur={() => { void handleInputBlurAndSave(); }}
         onRemove={handleRemove}
@@ -172,6 +257,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
           isLoading={isLoading}
           onSuggestionClick={handleSuggestionClick}
           suggestionsRef={suggestionsRef}
+          selectedIndex={selectedIndex}
         />
       )}
     </div>
