@@ -47,7 +47,7 @@ export function useYandexMaps() {
       } catch (err) {
         console.error('Failed to load Yandex Maps config:', err);
         const errorMessage = err instanceof Error
-          ? err.message
+            ? err.message
           : 'Не удалось загрузить конфигурацию Yandex Maps';
         setError(errorMessage);
         showMapLoadError(errorMessage);

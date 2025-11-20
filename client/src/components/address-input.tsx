@@ -153,7 +153,7 @@ export function AddressInput({
         inputRef={inputRef}
         value={value}
         inputValue={inputValue}
-        placeholder={placeholder}
+          placeholder={placeholder}
         type={type}
         showSuggestions={showSuggestions}
         suggestionsLength={suggestions.length}

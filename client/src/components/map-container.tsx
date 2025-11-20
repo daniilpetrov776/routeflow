@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { useRouteCalculation } from "@/hooks/useRouteCalculation";
@@ -41,16 +41,17 @@ export function MapContainer({
     routesRef,
   });
 
-  // Индекс самого быстрого маршрута
-  const fastestIndex = calculatedRoutes.length > 0
-    ? calculatedRoutes.reduce(
-        (bestIdx, _, i) =>
-          calculatedRoutes[i].duration < calculatedRoutes[bestIdx].duration
-            ? i
-            : bestIdx,
-        0
-      )
-    : 0;
+  // Индекс самого быстрого маршрута (мемоизирован для оптимизации)
+  const fastestIndex = useMemo(() => {
+    if (calculatedRoutes.length === 0) return 0;
+    return calculatedRoutes.reduce(
+      (bestIdx, _, i) =>
+        calculatedRoutes[i].duration < calculatedRoutes[bestIdx].duration
+          ? i
+          : bestIdx,
+      0
+    );
+  }, [calculatedRoutes]);
 
   // Эффект для обновления стилей уже отрисованных маршрутов
   useEffect(() => {
@@ -118,24 +119,24 @@ export function MapContainer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startingPoint, destinations, transportMode]);
 
-  // Обработчики контролов карты
-  const handleZoomIn = () => {
+  // Обработчики контролов карты (мемоизированы для предотвращения лишних ререндеров)
+  const handleZoomIn = useCallback(() => {
     if (yandexMapRef.current) {
       yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() + 1);
     }
-  };
+  }, []);
 
-  const handleZoomOut = () => {
+  const handleZoomOut = useCallback(() => {
     if (yandexMapRef.current) {
       yandexMapRef.current.setZoom(yandexMapRef.current.getZoom() - 1);
     }
-  };
+  }, []);
 
-  const handleCenter = () => {
+  const handleCenter = useCallback(() => {
     if (yandexMapRef.current && startingPoint) {
       yandexMapRef.current.setCenter(startingPoint.coordinates);
     }
-  };
+  }, [startingPoint]);
 
   return (
     <div className={styles["map-container"]}>

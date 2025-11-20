@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -7,13 +8,19 @@ import { Provider } from "react-redux";
 import { store } from "./store";
 import { ThemeProvider } from "./components/theme-provider";
 import Home from "@/pages/home";
-import NotFound from "@/pages/not-found";
+
+// Lazy loading для некритичных компонентов
+const NotFound = lazy(() => import("@/pages/not-found").then(module => ({ default: module.default })));
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route component={NotFound} />
+      <Route>
+        <Suspense fallback={<div>Loading...</div>}>
+          <NotFound />
+        </Suspense>
+      </Route>
     </Switch>
   );
 }
