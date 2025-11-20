@@ -99,17 +99,47 @@ export function useRouteCalculation({
         continue;
       }
 
+      // Валидация координат: широта должна быть между -90 и 90, долгота между -180 и 180
+      const [startLat, startLon] = startingPoint.coordinates;
+      const [destLat, destLon] = destination.coordinates;
+      
+      if (
+        !Number.isFinite(startLat) || !Number.isFinite(startLon) ||
+        !Number.isFinite(destLat) || !Number.isFinite(destLon) ||
+        startLat < -90 || startLat > 90 ||
+        startLon < -180 || startLon > 180 ||
+        destLat < -90 || destLat > 90 ||
+        destLon < -180 || destLon > 180
+      ) {
+        const errorMessage = `Некорректные координаты для маршрута #${i + 1}. Проверьте адреса.`;
+        console.error(errorMessage, {
+          start: startingPoint.coordinates,
+          destination: destination.coordinates,
+        });
+        showRouteError(errorMessage);
+        completed++;
+        if (completed === validDestinations.length) {
+          dispatch(setCalculating(false));
+        }
+        continue;
+      }
+
       // Создаем MultiRoute
+      // avoidTrafficJams работает только для режима "auto" (автомобиль)
+      const routeParams: any = {
+        routingMode,
+      };
+      if (routingMode === "auto") {
+        routeParams.avoidTrafficJams = true;
+      }
+
       const route = new window.ymaps.multiRouter.MultiRoute(
         {
           referencePoints: [
             startingPoint.coordinates,
             destination.coordinates,
           ],
-          params: {
-            routingMode,
-            avoidTrafficJams: true,
-          },
+          params: routeParams,
         },
         {
           wayPointStartIconColor: ROUTE_COLORS.FASTEST,
@@ -126,8 +156,29 @@ export function useRouteCalculation({
 
       // Обработка успешного расчёта
       route.model.events.add("requestsuccess", () => {
-        const activeRoute = route.getActiveRoute();
-        if (!activeRoute) return;
+        // Пытаемся получить активный маршрут, если его нет - берем первый доступный
+        let activeRoute = route.getActiveRoute();
+        if (!activeRoute) {
+          const routes = route.model.getRoutes();
+          if (routes.length === 0) {
+            console.warn(`No routes available for destination #${i + 1}`);
+            completed++;
+            if (completed === validDestinations.length) {
+              const validResults = routeResults.filter((r): r is RouteOption => r !== null);
+              if (validResults.length > 0) {
+                dispatch(setRoutes(validResults));
+              } else {
+                showRouteError(
+                  "Не удалось рассчитать ни один маршрут. Проверьте корректность адресов.",
+                  true
+                );
+              }
+              dispatch(setCalculating(false));
+            }
+            return;
+          }
+          activeRoute = routes[0];
+        }
 
         // Формируем объект результата
         const durationProp = activeRoute.properties.get("duration");
@@ -197,14 +248,36 @@ export function useRouteCalculation({
       });
 
       // Обработка ошибок расчёта
-      route.model.events.add("requestfail", () => {
+      route.model.events.add("requestfail", (event: any) => {
+        const errorDetails = event?.get('error') || 'Unknown error';
         const errorMessage = `Не удалось рассчитать маршрут до пункта назначения #${i + 1}`;
+        
         console.error(errorMessage, {
           from: startingPoint.coordinates,
           to: destination.coordinates,
+          routingMode,
+          transportMode,
+          error: errorDetails,
         });
         
-        showRouteError(errorMessage);
+        // Показываем ошибку только если это не временная проблема сети
+        // (retry логика должна обработать временные сбои)
+        const errorStr = typeof errorDetails === 'string' ? errorDetails : String(errorDetails);
+        if (errorStr.includes('network') || errorStr.includes('timeout')) {
+          console.warn(`Network error for route #${i + 1}, retry logic should handle this`);
+        } else {
+          // Для других ошибок показываем более информативное сообщение
+          const modeNames: Record<string, string> = {
+            'auto': 'автомобиль',
+            'pedestrian': 'пешком',
+            'bicycle': 'велосипед',
+            'masstransit': 'общественный транспорт',
+          };
+          const modeName = modeNames[routingMode] || transportMode;
+          showRouteError(
+            `${errorMessage} (режим: ${modeName}). Проверьте, доступен ли маршрут для выбранного режима транспорта.`
+          );
+        }
         
         completed++;
         // Если все маршруты завершились (успешно или с ошибкой)
@@ -216,7 +289,7 @@ export function useRouteCalculation({
           } else {
             // Если ни один маршрут не был рассчитан, показываем общую ошибку
             showRouteError(
-              "Не удалось рассчитать ни один маршрут. Проверьте корректность адресов.",
+              "Не удалось рассчитать ни один маршрут. Проверьте корректность адресов и режим транспорта.",
               true
             );
           }
