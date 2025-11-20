@@ -45,10 +45,17 @@ export interface YandexPlacemark {
 }
 
 /**
+ * Объект события Yandex Maps
+ */
+export interface YandexEvent {
+  get(key: string): unknown;
+}
+
+/**
  * Менеджер событий Yandex Maps
  */
 export interface YandexEventManager {
-  add(event: string, handler: () => void): void;
+  add(event: string, handler: (event?: YandexEvent) => void): void;
   remove(event: string, handler: () => void): void;
 }
 

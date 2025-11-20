@@ -1,12 +1,30 @@
-import type { Request, Response } from "express";
+import type { Express, Request, Response } from "express";
 import { suggestQuerySchema } from "../lib/validation-schemas";
 import { fetchGeocoderData } from "../lib/yandex-api";
 import { handleValidationError, handleError } from "../lib/error-handlers";
 
 /**
+ * Тип для элемента из ответа Yandex Geocoder API
+ */
+interface YandexGeocoderFeatureMember {
+  GeoObject: {
+    name: string;
+    description?: string;
+    metaDataProperty?: {
+      GeocoderMetaData?: {
+        text?: string;
+      };
+    };
+    Point?: {
+      pos?: string;
+    };
+  };
+}
+
+/**
  * Роут для получения предложений адресов через Yandex Maps API
  */
-export function registerSuggestRoute(app: any) {
+export function registerSuggestRoute(app: Express) {
   app.get("/api/suggest", async (req: Request, res: Response) => {
     try {
       // Валидируем query параметры
@@ -19,7 +37,7 @@ export function registerSuggestRoute(app: any) {
       // Парсим геокодер и извлекаем подходящие предложения (например, адреса)
       const suggestions = (
         data.response?.GeoObjectCollection?.featureMember || []
-      ).map((item: any) => {
+      ).map((item: YandexGeocoderFeatureMember) => {
         const geoObject = item.GeoObject;
         return {
           name: geoObject.name,

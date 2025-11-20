@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
 import {
   calculateDistance,
@@ -12,7 +12,7 @@ import { handleValidationError, handleError } from "../lib/error-handlers";
 /**
  * Роут для расчета маршрутов
  */
-export function registerRoutesRoute(app: any) {
+export function registerRoutesRoute(app: Express) {
   app.post("/api/routes", async (req: Request, res: Response) => {
     try {
       // Валидируем входные данные

@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Express, Request, Response } from "express";
 import { geocodeQuerySchema } from "../lib/validation-schemas";
 import { fetchGeocoderData } from "../lib/yandex-api";
 import { handleValidationError, handleError } from "../lib/error-handlers";
@@ -6,7 +6,7 @@ import { handleValidationError, handleError } from "../lib/error-handlers";
 /**
  * Роут для геокодирования адреса через Yandex Maps API
  */
-export function registerGeocodeRoute(app: any) {
+export function registerGeocodeRoute(app: Express) {
   app.get("/api/geocode", async (req: Request, res: Response) => {
     try {
       // Валидируем query параметры

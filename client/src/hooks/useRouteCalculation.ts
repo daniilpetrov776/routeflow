@@ -9,7 +9,7 @@ import {
   MAP_ZOOM_MARGIN,
 } from "@/lib/map-constants";
 import type { AddressPoint, RouteOption, TransportMode } from "@/store/route-slice";
-import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
+import type { YandexMap, YandexMultiRoute, RoutingParams, YandexEvent } from "@/types/yandex-maps";
 
 interface UseRouteCalculationOptions {
   yandexMapRef: React.RefObject<YandexMap | null>;
@@ -126,7 +126,7 @@ export function useRouteCalculation({
 
       // Создаем MultiRoute
       // avoidTrafficJams работает только для режима "auto" (автомобиль)
-      const routeParams: any = {
+      const routeParams: RoutingParams = {
         routingMode,
       };
       if (routingMode === "auto") {
@@ -248,7 +248,7 @@ export function useRouteCalculation({
       });
 
       // Обработка ошибок расчёта
-      route.model.events.add("requestfail", (event: any) => {
+      route.model.events.add("requestfail", (event?: YandexEvent) => {
         const errorDetails = event?.get('error') || 'Unknown error';
         const errorMessage = `Не удалось рассчитать маршрут до пункта назначения #${i + 1}`;
         

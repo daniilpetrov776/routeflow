@@ -5,7 +5,7 @@ import logger from "./logger";
 
 const MAX_INSPECT_LENGTH = 2000;
 
-function inspectTrim(obj: any) {
+function inspectTrim(obj: unknown) {
   if (obj === undefined) return undefined;
   try {
     const inspected = util.inspect(obj, {
@@ -38,8 +38,8 @@ export default function requestLogger(req: Request, res: Response, next: NextFun
   const path = req.path;
 
   const originalJson = res.json.bind(res);
-  let capturedJson: any = undefined;
-  res.json = function (body: any) {
+  let capturedJson: unknown = undefined;
+  res.json = function (body: unknown) {
     capturedJson = body;
     return originalJson(body);
   };
@@ -62,7 +62,7 @@ export default function requestLogger(req: Request, res: Response, next: NextFun
     // Соберём сообщение: основной заголовок + отдельно длинные превью как новые строки
     const parts: string[] = [msg];
     if (req.params && Object.keys(req.params).length) parts.push(`params: ${inspectTrim(req.params)}`);
-    if (req.query && Object.keys(req.query as any).length) parts.push(`query: ${inspectTrim(req.query)}`);
+    if (req.query && Object.keys(req.query).length) parts.push(`query: ${inspectTrim(req.query)}`);
     if (reqBodyPreview) parts.push(`requestBody:\n${reqBodyPreview}`);
     if (responsePreview) parts.push(`response:\n${responsePreview}`);
 
