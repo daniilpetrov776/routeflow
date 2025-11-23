@@ -10,6 +10,7 @@ import {
 } from "@/lib/map-constants";
 import type { AddressPoint, RouteOption, TransportMode } from "@/store/route-slice";
 import type { YandexMap, YandexMultiRoute, RoutingParams, YandexEvent } from "@/types/yandex-maps";
+import { addRouteClickHandler } from "@/lib/route-balloon";
 
 interface UseRouteCalculationOptions {
   yandexMapRef: React.RefObject<YandexMap | null>;
@@ -147,8 +148,19 @@ export function useRouteCalculation({
           routeActiveStrokeColor: i === 0 ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
           routeActiveStrokeWidth: i === 0 ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
           opacity: i === 0 ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
+          // Отключаем стандартный balloon
+          balloonContentLayout: '',
+          balloonContentBodyLayout: '',
+          balloonContentItemLayout: '',
+          // Отключаем открытие balloon по клику (будем обрабатывать сами)
+          balloonAutoPan: false,
         }
       );
+
+      // Добавляем обработчик клика один раз при создании маршрута
+      if (yandexMapRef.current) {
+        addRouteClickHandler(route, i, destination, yandexMapRef.current, dispatch);
+      }
 
       // Добавляем маршрут на карту и в ref
       yandexMapRef.current.geoObjects.add(route);

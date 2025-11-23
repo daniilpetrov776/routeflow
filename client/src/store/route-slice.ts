@@ -20,6 +20,18 @@ export interface RouteOption {
   };
 }
 
+export interface RouteBalloonData {
+  routeIndex: number;
+  destination: AddressPoint;
+  duration: number;
+  distance: number;
+}
+
+export interface RouteBalloonState {
+  data: RouteBalloonData | null;
+  position: { x: number; y: number } | null;
+}
+
 export interface RouteState {
   startingPoint: AddressPoint | null;
   destinations: AddressPoint[];
@@ -28,6 +40,7 @@ export interface RouteState {
 
   isCalculating: boolean;
   error: string | null;
+  balloon: RouteBalloonState;
 }
 
 const initialState: RouteState = {
@@ -38,6 +51,10 @@ const initialState: RouteState = {
 
   isCalculating: false,
   error: null,
+  balloon: {
+    data: null,
+    position: null,
+  },
 };
 
 const routeSlice = createSlice({
@@ -91,6 +108,14 @@ const routeSlice = createSlice({
 
       state.error = null;
     },
+    openRouteBalloon: (state, action: PayloadAction<{ data: RouteBalloonData; position: { x: number; y: number } }>) => {
+      state.balloon.data = action.payload.data;
+      state.balloon.position = action.payload.position;
+    },
+    closeRouteBalloon: (state) => {
+      state.balloon.data = null;
+      state.balloon.position = null;
+    },
   },
 });
 
@@ -105,6 +130,8 @@ export const {
   setCalculating,
   setError,
   clearRoutes,
+  openRouteBalloon,
+  closeRouteBalloon,
 } = routeSlice.actions;
 
 export default routeSlice.reducer;
