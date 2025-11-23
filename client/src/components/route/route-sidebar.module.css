@@ -181,8 +181,8 @@
 }
 
 .route-sidebar__summary {
-  @apply border-t border-border p-4 bg-muted;
-  opacity: 0.5;
+  @apply border-t border-border p-4;
+  background-color: hsl(var(--muted) / 0.6);
 }
 
 .route-sidebar__summary-title {
@@ -198,14 +198,18 @@
 }
 
 .route-sidebar__summary-value {
-  @apply text-2xl font-bold text-primary;
+  @apply text-2xl font-bold;
+  color: hsl(var(--primary));
 }
 
 .route-sidebar__summary-value--green {
-  @apply text-2xl font-bold text-green-500;
+  @apply text-2xl font-bold;
+  color: hsl(142, 71%, 45%);
 }
 
 .route-sidebar__summary-label {
-  @apply text-muted-foreground;
+  @apply text-sm font-medium;
+  color: hsl(var(--muted-foreground) / 0.9);
+  margin-top: 0.25rem;
 }
 

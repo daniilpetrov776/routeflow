@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import type { AddressPoint } from "@/store/route-slice";
 import { X } from "lucide-react";
 import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
 import styles from "./route-balloon.module.css";
 
@@ -90,6 +91,13 @@ export function RouteBalloon({ data, position, onClose }: RouteBalloonProps) {
     duration: currentRoute?.duration ?? data.duration,
     distance: currentRoute?.distance ?? data.distance,
   } : null;
+
+  // Определяем, является ли текущий маршрут самым быстрым
+  const isFastest = useMemo(() => {
+    if (!displayData || routes.length === 0) return false;
+    const currentDuration = displayData.duration;
+    return routes.every(route => route.duration >= currentDuration);
+  }, [displayData, routes]);
 
   // Обработчик ESC для закрытия balloon
   useEffect(() => {
@@ -244,7 +252,14 @@ export function RouteBalloon({ data, position, onClose }: RouteBalloonProps) {
         </Button>
 
         <div className={styles["route-balloon__header"]}>
-          <strong>Маршрут {displayData.routeIndex + 1}</strong>
+          <div className={styles["route-balloon__header-content"]}>
+            {isFastest && (
+              <Badge variant="secondary" className={styles["route-balloon__badge"]}>
+                БЫСТРЕЙШИЙ
+              </Badge>
+            )}
+            <strong>Маршрут {displayData.routeIndex + 1}</strong>
+          </div>
         </div>
 
         <div className={styles["route-balloon__body"]}>

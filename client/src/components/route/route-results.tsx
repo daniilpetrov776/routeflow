@@ -1,11 +1,13 @@
 import { useMemo } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
+import { requestOpenRouteBalloonByIndex } from "@/store/route-slice";
 import { RouteCard } from "./route-card";
 import styles from "./route-results.module.css";
 
 export function RouteResults() {
   const { routes } = useSelector((state: RootState) => state.route);
+  const dispatch = useDispatch();
 
   // Находим самый быстрый маршрут (мемоизирован для оптимизации)
   const fastestRoute = useMemo(() => {
@@ -37,6 +39,7 @@ export function RouteResults() {
           route={route}
           index={index}
           isFastest={fastestRoute ? route.id === fastestRoute.id : false}
+          onClick={() => dispatch(requestOpenRouteBalloonByIndex(index))}
         />
       ))}
     </div>

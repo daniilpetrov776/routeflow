@@ -10,6 +10,7 @@ interface RouteCardProps {
   route: RouteOption;
   index: number;
   isFastest: boolean;
+  onClick?: () => void;
 }
 
 /**
@@ -51,10 +52,11 @@ const truncateAddress = (address: string, maxLength: number = 20): string => {
   return address.length > maxLength ? `${address.substring(0, maxLength)}...` : address;
 };
 
-export function RouteCard({ route, index, isFastest }: RouteCardProps) {
+export function RouteCard({ route, index, isFastest, onClick }: RouteCardProps) {
   return (
     <Card
-      className={`${styles["route-results__card"]} ${isFastest ? styles["route-results__card--fastest"] : ''}`}
+      className={`${styles["route-results__card"]} ${isFastest ? styles["route-results__card--fastest"] : ''} ${onClick ? styles["route-results__card--clickable"] : ''}`}
+      onClick={onClick}
     >
       <CardContent className={styles["route-results__card-content"]}>
         <div className={styles["route-results__card-header"]}>

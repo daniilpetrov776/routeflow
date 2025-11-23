@@ -30,6 +30,7 @@ export interface RouteBalloonData {
 export interface RouteBalloonState {
   data: RouteBalloonData | null;
   position: { x: number; y: number } | null;
+  requestedRouteIndex: number | null; // Индекс маршрута, для которого запрошено открытие balloon
 }
 
 export interface RouteState {
@@ -54,6 +55,7 @@ const initialState: RouteState = {
   balloon: {
     data: null,
     position: null,
+    requestedRouteIndex: null,
   },
 };
 
@@ -155,9 +157,19 @@ const routeSlice = createSlice({
         state.balloon.data.routeIndex = action.payload.routeIndex;
       }
     },
+    requestOpenRouteBalloonByIndex: (state, action: PayloadAction<number>) => {
+      // Это действие используется для запроса открытия balloon по индексу
+      // Фактическое открытие обрабатывается в MapContainer через эффект
+      // Здесь мы просто помечаем, что нужно открыть balloon
+      state.balloon.requestedRouteIndex = action.payload;
+    },
+    clearRequestedRouteIndex: (state) => {
+      state.balloon.requestedRouteIndex = null;
+    },
     closeRouteBalloon: (state) => {
       state.balloon.data = null;
       state.balloon.position = null;
+      state.balloon.requestedRouteIndex = null;
     },
   },
 });
@@ -176,6 +188,8 @@ export const {
   openRouteBalloon,
   updateRouteBalloonPosition,
   updateRouteBalloonData,
+  requestOpenRouteBalloonByIndex,
+  clearRequestedRouteIndex,
   closeRouteBalloon,
 } = routeSlice.actions;
 

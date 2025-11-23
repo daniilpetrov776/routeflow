@@ -7,7 +7,7 @@ import { MapControls } from "./map-controls";
 import { MapLoadingState } from "./map-loading-state";
 import { MapCalculatingState } from "./map-calculating-state";
 import { RouteBalloon } from "../route/route-balloon";
-import { closeRouteBalloon, updateRouteBalloonPosition, updateRouteBalloonData } from "@/store/route-slice";
+import { closeRouteBalloon, openRouteBalloon, updateRouteBalloonPosition, updateRouteBalloonData, clearRequestedRouteIndex } from "@/store/route-slice";
 import { recalculateBalloonPosition } from "@/lib/route/route-balloon-position";
 import {
   DEFAULT_MAP_CENTER,
@@ -25,20 +25,23 @@ interface MapContainerProps {
   isLoaded: boolean;
   startingPoint: AddressPoint | null;
   destinations: AddressPoint[];
+  yandexMapRef: React.MutableRefObject<YandexMap | null>;
+  routesRef: React.MutableRefObject<YandexMultiRoute[]>;
 }
 
 export function MapContainer({
   isLoaded,
   startingPoint,
-  destinations
+  destinations,
+  yandexMapRef,
+  routesRef,
 }: MapContainerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const yandexMapRef = useRef<YandexMap | null>(null);
-  const routesRef = useRef<YandexMultiRoute[]>([]);
   const dispatch = useDispatch();
 
   const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
   const { isCalculating, transportMode, balloon } = useSelector((state: RootState) => state.route);
+  const requestedRouteIndex = useSelector((state: RootState) => state.route.balloon.requestedRouteIndex);
   
   // Отслеживаем последние значения для предотвращения лишних пересчетов
   const lastBalloonDataRef = useRef<typeof balloon.data | null>(null);
@@ -68,10 +71,11 @@ export function MapContainer({
     );
   }, [calculatedRoutes]);
 
-  // Эффект для обновления стилей уже отрисованных маршрутов
+  // Эффект для обновления стилей уже отрисованных маршрутов и порядка отображения
   useEffect(() => {
-    if (!yandexMapRef.current) return;
+    if (!yandexMapRef.current || !routesRef.current || routesRef.current.length === 0) return;
 
+    // Сначала обновляем стили всех маршрутов
     routesRef.current.forEach((multiRouteObj, idx) => {
       const isFastest = idx === fastestIndex;
       multiRouteObj.options.set({
@@ -80,7 +84,61 @@ export function MapContainer({
         opacity: isFastest ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
       });
     });
-  }, [calculatedRoutes, fastestIndex]);
+
+    // Перемещаем самый быстрый маршрут в конец коллекции, чтобы он был поверх остальных
+    if (fastestIndex >= 0 && routesRef.current && fastestIndex < routesRef.current.length && yandexMapRef.current) {
+      const fastestRoute = routesRef.current[fastestIndex];
+      if (fastestRoute) {
+        // Удаляем самый быстрый маршрут из коллекции
+        yandexMapRef.current.geoObjects.remove(fastestRoute);
+        // Добавляем его обратно в конец, чтобы он был поверх остальных
+        yandexMapRef.current.geoObjects.add(fastestRoute);
+      }
+    }
+  }, [calculatedRoutes, fastestIndex, yandexMapRef, routesRef]);
+
+  // Эффект для открытия balloon по запросу из Redux
+  useEffect(() => {
+    if (requestedRouteIndex === null || !yandexMapRef.current || requestedRouteIndex < 0 || 
+        requestedRouteIndex >= calculatedRoutes.length || requestedRouteIndex >= routesRef.current.length ||
+        !startingPoint) {
+      return;
+    }
+
+    const route = routesRef.current[requestedRouteIndex];
+    const routeOption = calculatedRoutes[requestedRouteIndex];
+    
+    if (!route || !routeOption) {
+      return;
+    }
+
+    // Получаем позицию balloon (середина маршрута или destination)
+    const balloonPosition = recalculateBalloonPosition(
+      route,
+      yandexMapRef.current,
+      routeOption.destination,
+      routeOption,
+      startingPoint
+    );
+
+    if (balloonPosition && 
+        typeof balloonPosition.x === 'number' && 
+        typeof balloonPosition.y === 'number' && 
+        !isNaN(balloonPosition.x) && 
+        !isNaN(balloonPosition.y)) {
+      dispatch(openRouteBalloon({
+        data: {
+          routeIndex: requestedRouteIndex,
+          destination: routeOption.destination,
+          duration: routeOption.duration,
+          distance: routeOption.distance,
+        },
+        position: balloonPosition,
+      }));
+      // Сбрасываем запрос после открытия
+      dispatch(clearRequestedRouteIndex());
+    }
+  }, [requestedRouteIndex, yandexMapRef, routesRef, calculatedRoutes, startingPoint, dispatch]);
 
   // Эффект для обновления данных balloon при появлении новых маршрутов
   // Выполняется сразу, как только маршруты готовы (не ждем isCalculating)
@@ -173,7 +231,7 @@ export function MapContainer({
         );
       });
 
-      if (routeIndex < 0 || routeIndex >= routesRef.current.length) {
+      if (routeIndex < 0 || !routesRef.current || routeIndex >= routesRef.current.length) {
         return;
       }
 
@@ -186,6 +244,8 @@ export function MapContainer({
       const routeOption = calculatedRoutes[routeIndex];
       
       // Пересчитываем позицию balloon
+      if (!yandexMapRef.current || !balloon.data || !startingPoint) return;
+      
       const newPosition = recalculateBalloonPosition(
         route,
         yandexMapRef.current,
@@ -241,7 +301,9 @@ export function MapContainer({
 
     // Очищаем все объекты на карте
     yandexMapRef.current.geoObjects.removeAll();
-    routesRef.current = [];
+    if (routesRef.current) {
+      routesRef.current.splice(0, routesRef.current.length);
+    }
 
     // Создаем маркеры
     if (!window.ymaps) return;
