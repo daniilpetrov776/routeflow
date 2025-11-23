@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import { MapContainer } from "@/components/map-container";
-import { RouteSidebar } from "@/components/route-sidebar";
+import { MapContainer } from "@/components/map/map-container";
+import { RouteSidebar } from "@/components/route/route-sidebar";
 import { useYandexMaps } from "@/hooks/use-yandex-maps";
 import { useIsMobile } from "@/hooks/use-mobile";
 import styles from "./home.module.css";

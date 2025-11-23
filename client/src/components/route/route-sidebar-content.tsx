@@ -1,8 +1,8 @@
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import { AddressInput } from "./address-input";
+import { AddressInput } from "../address/address-input";
 import { RouteResults } from "./route-results";
-import { SidebarHeader } from "./sidebar-header";
+import { SidebarHeader } from "../sidebar-header";
 import { DestinationsSection } from "./destinations-section";
 import { RouteSummary } from "./route-summary";
 import styles from "./route-sidebar.module.css";

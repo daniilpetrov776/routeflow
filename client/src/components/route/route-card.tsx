@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Crown } from "lucide-react";
-import { formatDuration, formatDistance } from "@/lib/route-utils";
+import { formatDuration, formatDistance } from "@/lib/route";
 import { sanitizeText } from "@/lib/sanitize";
 import type { RouteOption } from "@/store/route-slice";
 import styles from "./route-results.module.css";

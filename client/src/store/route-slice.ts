@@ -74,7 +74,38 @@ const routeSlice = createSlice({
       state.error = null;
     },
     removeDestination: (state, action: PayloadAction<number>) => {
-      state.destinations.splice(action.payload, 1);
+      const removedIndex = action.payload;
+      const removedDestination = state.destinations[removedIndex];
+      
+      // Закрываем balloon, если он открыт для удаляемого пункта назначения
+      if (state.balloon.data && 
+          state.balloon.data.destination.address === removedDestination?.address &&
+          Math.abs(state.balloon.data.destination.coordinates[0] - (removedDestination?.coordinates[0] || 0)) < 0.0001 &&
+          Math.abs(state.balloon.data.destination.coordinates[1] - (removedDestination?.coordinates[1] || 0)) < 0.0001) {
+        state.balloon.data = null;
+        state.balloon.position = null;
+      }
+      
+      // Удаляем destination
+      state.destinations.splice(removedIndex, 1);
+      
+      // Удаляем соответствующий маршрут из store
+      // Находим маршрут по destination (адрес и координаты)
+      if (removedDestination && state.routes.length > 0) {
+        const routeIndexToRemove = state.routes.findIndex(route => {
+          const routeDest = route.destination;
+          return (
+            routeDest.address === removedDestination.address &&
+            Math.abs(routeDest.coordinates[0] - removedDestination.coordinates[0]) < 0.0001 &&
+            Math.abs(routeDest.coordinates[1] - removedDestination.coordinates[1]) < 0.0001
+          );
+        });
+        
+        if (routeIndexToRemove >= 0) {
+          state.routes.splice(routeIndexToRemove, 1);
+        }
+      }
+      
       state.error = null;
     },
     updateDestination: (state, action: PayloadAction<{ index: number; destination: AddressPoint }>) => {
@@ -112,6 +143,18 @@ const routeSlice = createSlice({
       state.balloon.data = action.payload.data;
       state.balloon.position = action.payload.position;
     },
+    updateRouteBalloonPosition: (state, action: PayloadAction<{ x: number; y: number }>) => {
+      if (state.balloon.data) {
+        state.balloon.position = action.payload;
+      }
+    },
+    updateRouteBalloonData: (state, action: PayloadAction<{ duration: number; distance: number; routeIndex: number }>) => {
+      if (state.balloon.data) {
+        state.balloon.data.duration = action.payload.duration;
+        state.balloon.data.distance = action.payload.distance;
+        state.balloon.data.routeIndex = action.payload.routeIndex;
+      }
+    },
     closeRouteBalloon: (state) => {
       state.balloon.data = null;
       state.balloon.position = null;
@@ -131,6 +174,8 @@ export const {
   setError,
   clearRoutes,
   openRouteBalloon,
+  updateRouteBalloonPosition,
+  updateRouteBalloonData,
   closeRouteBalloon,
 } = routeSlice.actions;
 

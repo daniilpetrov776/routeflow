@@ -3,9 +3,9 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { setTheme } from "@/store/theme-slice";
 import { Button } from "@/components/ui/button";
-import { TransportModeSelector } from "./transport-mode-selector";
+import { TransportModeSelector } from "./route/transport-mode-selector";
 import { Sun, Moon, Monitor } from "lucide-react";
-import styles from "./route-sidebar.module.css";
+import styles from "./route/route-sidebar.module.css";
 
 interface SidebarHeaderProps {
   isMobile?: boolean;
