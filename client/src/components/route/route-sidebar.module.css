@@ -125,6 +125,14 @@
   /* Базовые стили для селектора транспорта */
 }
 
+.route-sidebar__persist-section {
+  @apply mt-3;
+}
+
+.route-sidebar__persist-section {
+  @apply mt-3;
+}
+
 .route-sidebar__title {
   @apply text-xl font-semibold text-foreground;
 }
@@ -135,6 +143,43 @@
 
 .route-sidebar__theme-icon {
   @apply h-4 w-4;
+}
+
+.route-sidebar__persist-toggle {
+  @apply flex items-center justify-between gap-3 p-2 rounded-md;
+  background-color: hsl(var(--muted) / 0.3);
+  transition: background-color 0.2s;
+}
+
+.route-sidebar__persist-toggle:hover {
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+.route-sidebar__persist-label {
+  @apply flex items-center gap-2 cursor-pointer text-sm text-foreground;
+  flex: 1;
+}
+
+.route-sidebar__persist-icon {
+  @apply h-4 w-4;
+  color: hsl(var(--muted-foreground));
+}
+
+.route-sidebar__persist-toggle {
+  @apply flex items-center justify-between gap-3 p-2 rounded-md;
+  background-color: hsl(var(--muted) / 0.3);
+  border: 1px solid hsl(var(--border));
+}
+
+.route-sidebar__persist-label {
+  @apply flex items-center gap-2 cursor-pointer flex-1;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+}
+
+.route-sidebar__persist-icon {
+  @apply h-4 w-4;
+  color: hsl(var(--muted-foreground));
 }
 
 .route-sidebar__inputs {

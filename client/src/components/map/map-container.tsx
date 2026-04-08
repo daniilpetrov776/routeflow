@@ -322,8 +322,7 @@ export function MapContainer({
     yandexMapRef.current.setCenter(startingPoint.coordinates, STARTING_POINT_ZOOM, {
       duration: MAP_ANIMATION_DURATION,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startingPoint, destinations, transportMode]);
+  }, [startingPoint, destinations, transportMode, calculateRoutes]);
 
   // Обработчики контролов карты (мемоизированы для предотвращения лишних ререндеров)
   const handleZoomIn = useCallback(() => {

@@ -1,6 +1,9 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { getItemWithDefault, setItem } from '@/lib/localStorage';
 
 export type TransportMode = 'walking' | 'cycling' | 'transit' | 'driving';
+
+const PERSIST_ROUTES_KEY = 'routeflow_persist_routes';
 
 export interface AddressPoint {
   address: string;
@@ -42,7 +45,12 @@ export interface RouteState {
   isCalculating: boolean;
   error: string | null;
   balloon: RouteBalloonState;
+  persistRoutes: boolean; // Сохранять ли маршруты между перезагрузками
 }
+
+const getInitialPersistRoutes = (): boolean => {
+  return getItemWithDefault<boolean>(PERSIST_ROUTES_KEY, false);
+};
 
 const initialState: RouteState = {
   startingPoint: null,
@@ -57,6 +65,7 @@ const initialState: RouteState = {
     position: null,
     requestedRouteIndex: null,
   },
+  persistRoutes: getInitialPersistRoutes(),
 };
 
 const routeSlice = createSlice({
@@ -73,6 +82,10 @@ const routeSlice = createSlice({
     },
     addDestination: (state, action: PayloadAction<AddressPoint>) => {
       state.destinations.push(action.payload);
+      state.error = null;
+    },
+    setDestinations: (state, action: PayloadAction<AddressPoint[]>) => {
+      state.destinations = action.payload;
       state.error = null;
     },
     removeDestination: (state, action: PayloadAction<number>) => {
@@ -171,6 +184,10 @@ const routeSlice = createSlice({
       state.balloon.position = null;
       state.balloon.requestedRouteIndex = null;
     },
+    setPersistRoutes: (state, action: PayloadAction<boolean>) => {
+      state.persistRoutes = action.payload;
+      setItem(PERSIST_ROUTES_KEY, action.payload);
+    },
   },
 });
 
@@ -178,6 +195,7 @@ export const {
   setStartingPoint,
   clearStartingPoint,
   addDestination,
+  setDestinations,
   removeDestination,
   updateDestination,
   setTransportMode,
@@ -191,6 +209,7 @@ export const {
   requestOpenRouteBalloonByIndex,
   clearRequestedRouteIndex,
   closeRouteBalloon,
+  setPersistRoutes,
 } = routeSlice.actions;
 
 export default routeSlice.reducer;

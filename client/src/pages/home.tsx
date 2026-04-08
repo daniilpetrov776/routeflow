@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { MapContainer } from "@/components/map/map-container";
 import { RouteSidebar } from "@/components/route/route-sidebar";
+import { RoutePersistence } from "@/components/route/route-persistence";
 import { useYandexMaps } from "@/hooks/use-yandex-maps";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
@@ -33,6 +34,7 @@ export default function Home() {
 
   return (
     <div className={styles.home}>
+      <RoutePersistence />
       {isMobile && (
         <div 
           className={`${styles["home__overlay"]} ${sidebarOpen ? styles["home__overlay--visible"] : ""}`}
