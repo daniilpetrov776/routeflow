@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { showMapLoadError } from '@/lib/error-toast';
+import { initGlobalBalloonHider } from '@/lib/balloon';
 
 export function useYandexMaps() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Инициализируем глобальный обработчик для скрытия стандартных balloon
+    initGlobalBalloonHider();
+
     // Check if Yandex Maps is already loaded
     if (window.ymaps) {
       setIsLoaded(true);

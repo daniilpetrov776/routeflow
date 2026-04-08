@@ -1,0 +1,62 @@
+.route-balloon {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.route-balloon__content {
+  position: relative;
+  padding: 16px;
+}
+
+.route-balloon__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+}
+
+.route-balloon__header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-right: 24px;
+}
+
+.route-balloon__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.route-balloon__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.route-balloon__label {
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+.route-balloon__value {
+  font-size: 14px;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+
+

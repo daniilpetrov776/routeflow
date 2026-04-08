@@ -1,11 +1,13 @@
 import { useEffect, useRef, useMemo, useCallback } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { useRouteCalculation } from "@/hooks/useRouteCalculation";
 import { createAllMarkers } from "@/lib/map-markers";
 import { MapControls } from "./map-controls";
 import { MapLoadingState } from "./map-loading-state";
 import { MapCalculatingState } from "./map-calculating-state";
+import { RouteBalloon } from "./route-balloon";
+import { closeRouteBalloon } from "@/store/route-slice";
 import {
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
@@ -32,9 +34,10 @@ export function MapContainer({
   const mapRef = useRef<HTMLDivElement>(null);
   const yandexMapRef = useRef<YandexMap | null>(null);
   const routesRef = useRef<YandexMultiRoute[]>([]);
+  const dispatch = useDispatch();
 
   const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
-  const { isCalculating, transportMode } = useSelector((state: RootState) => state.route);
+  const { isCalculating, transportMode, balloon } = useSelector((state: RootState) => state.route);
 
   const { calculateRoutes } = useRouteCalculation({
     yandexMapRef,
@@ -138,8 +141,23 @@ export function MapContainer({
     }
   }, [startingPoint]);
 
+  // Закрываем balloon при клике на карту
+  const handleMapClick = useCallback((e: React.MouseEvent) => {
+    // Проверяем, что клик был именно на карте, а не на balloon или маршруте
+    const target = e.target as HTMLElement;
+    const isRouteBalloon = target.closest('[class*="route-balloon"]') !== null;
+    const isYandexMapsElement = target.closest('[class*="ymaps"]') !== null;
+    const isRouteLine = target.closest('[class*="route"]') !== null || target.closest('[class*="multi"]') !== null;
+    
+    // Закрываем только если клик был на самой карте, а не на маршруте или balloon
+    if (balloon.data && !isRouteBalloon && !isYandexMapsElement && !isRouteLine) {
+      console.log('Closing balloon on map click');
+      dispatch(closeRouteBalloon());
+    }
+  }, [balloon.data, dispatch]);
+
   return (
-    <div className={styles["map-container"]}>
+    <div className={styles["map-container"]} onClick={handleMapClick}>
       <div ref={mapRef} className={styles["map-container__map"]} style={{ minHeight: '100%' }} />
 
       {!isLoaded && <MapLoadingState />}
@@ -150,6 +168,12 @@ export function MapContainer({
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onCenter={handleCenter}
+      />
+
+      <RouteBalloon
+        data={balloon.data}
+        position={balloon.position}
+        onClose={() => dispatch(closeRouteBalloon())}
       />
     </div>
   );

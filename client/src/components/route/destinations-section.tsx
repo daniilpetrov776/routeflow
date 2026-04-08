@@ -2,7 +2,7 @@ import { useDispatch } from "react-redux";
 import { useEffect, useRef } from "react";
 import { addDestination } from "@/store/route-slice";
 import { Button } from "@/components/ui/button";
-import { AddressInput } from "./address-input";
+import { AddressInput } from "../address/address-input";
 import { Plus } from "lucide-react";
 import { MOSCOW_CENTER } from "@/lib/map-constants";
 import type { AddressPoint } from "@/store/route-slice";

@@ -1,37 +1,27 @@
 import { useCallback } from "react";
-import { useDispatch } from "react-redux";
-import { setRoutes, setCalculating } from "@/store/route-slice";
+import { useDispatch, useStore } from "react-redux";
+import { setCalculating } from "@/store/route-slice";
+import type { RootState } from "@/store";
 import { showRouteError } from "@/lib/error-toast";
+import type { AddressPoint, TransportMode } from "@/store/route-slice";
+import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 import {
-  ROUTE_COLORS,
-  ROUTE_STYLES,
-  MAP_BOUNDS_ADJUSTMENT_DELAY,
-  MAP_ZOOM_MARGIN,
-} from "@/lib/map-constants";
-import type { AddressPoint, RouteOption, TransportMode } from "@/store/route-slice";
-import type { YandexMap, YandexMultiRoute, RoutingParams, YandexEvent } from "@/types/yandex-maps";
+  addRouteClickHandler,
+  filterValidDestinations,
+  validateStartingPoint,
+  validateDestination,
+  validateRouteCoordinates,
+  createMultiRoute,
+  getYandexRoutingMode,
+  createRouteSuccessHandler,
+  createRouteErrorHandler,
+} from "@/lib/route";
+import type { RouteOption } from "@/store/route-slice";
 
 interface UseRouteCalculationOptions {
   yandexMapRef: React.RefObject<YandexMap | null>;
   routesRef: React.RefObject<YandexMultiRoute[]>;
 }
-
-/**
- * Преобразует режим транспорта в формат Yandex Maps
- */
-const getYandexRoutingMode = (transportMode: TransportMode): "auto" | "pedestrian" | "bicycle" | "masstransit" => {
-  switch (transportMode) {
-    case "walking":
-      return "pedestrian";
-    case "cycling":
-      return "bicycle";
-    case "transit":
-      return "masstransit";
-    case "driving":
-    default:
-      return "auto";
-  }
-};
 
 /**
  * Хук для расчета маршрутов на карте Yandex Maps
@@ -41,6 +31,7 @@ export function useRouteCalculation({
   routesRef,
 }: UseRouteCalculationOptions) {
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
 
   const calculateRoutes = useCallback(async (
     startingPoint: AddressPoint,
@@ -48,6 +39,7 @@ export function useRouteCalculation({
     transportMode: TransportMode
   ) => {
     if (!yandexMapRef.current || !startingPoint) return;
+    
     if (!window.ymaps) {
       const errorMessage = "Yandex Maps API не загружен";
       console.error(errorMessage);
@@ -56,19 +48,18 @@ export function useRouteCalculation({
       return;
     }
 
-    const validDestinations = destinations.filter(
-      d => d.address && d.address.trim() !== '' && d.coordinates && d.coordinates.length === 2
-    );
-    if (validDestinations.length === 0) return;
-
-    // Проверяем координаты начальной точки
-    if (!startingPoint.coordinates || startingPoint.coordinates.length !== 2) {
-      const errorMessage = "Некорректные координаты начальной точки";
-      console.error(errorMessage);
-      showRouteError(errorMessage);
+    // Валидация начальной точки
+    const startingPointError = validateStartingPoint(startingPoint);
+    if (startingPointError) {
+      console.error(startingPointError);
+      showRouteError(startingPointError);
       dispatch(setCalculating(false));
       return;
     }
+
+    // Фильтруем валидные пункты назначения
+    const validDestinations = filterValidDestinations(destinations);
+    if (validDestinations.length === 0) return;
 
     dispatch(setCalculating(true));
 
@@ -80,225 +71,96 @@ export function useRouteCalculation({
 
     // Подготавливаем массив результатов
     const routeResults: Array<RouteOption | null> = new Array(validDestinations.length).fill(null);
-    let completed = 0;
-
+    const completedRef = { current: 0 };
     const routingMode = getYandexRoutingMode(transportMode);
 
     for (let i = 0; i < validDestinations.length; i++) {
       const destination = validDestinations[i];
 
-      // Проверяем координаты пункта назначения
-      if (!destination.coordinates || destination.coordinates.length !== 2) {
-        const errorMessage = `Некорректные координаты пункта назначения #${i + 1}`;
-        console.error(errorMessage);
-        showRouteError(errorMessage);
-        completed++;
-        if (completed === validDestinations.length) {
+      // Валидация пункта назначения
+      const destinationError = validateDestination(destination, i);
+      if (destinationError) {
+        console.error(destinationError);
+        showRouteError(destinationError);
+        completedRef.current++;
+        if (completedRef.current === validDestinations.length) {
           dispatch(setCalculating(false));
         }
         continue;
       }
 
-      // Валидация координат: широта должна быть между -90 и 90, долгота между -180 и 180
-      const [startLat, startLon] = startingPoint.coordinates;
-      const [destLat, destLon] = destination.coordinates;
-      
-      if (
-        !Number.isFinite(startLat) || !Number.isFinite(startLon) ||
-        !Number.isFinite(destLat) || !Number.isFinite(destLon) ||
-        startLat < -90 || startLat > 90 ||
-        startLon < -180 || startLon > 180 ||
-        destLat < -90 || destLat > 90 ||
-        destLon < -180 || destLon > 180
-      ) {
-        const errorMessage = `Некорректные координаты для маршрута #${i + 1}. Проверьте адреса.`;
-        console.error(errorMessage, {
+      // Валидация координат маршрута
+      const routeError = validateRouteCoordinates(startingPoint, destination, i);
+      if (routeError) {
+        console.error(routeError, {
           start: startingPoint.coordinates,
           destination: destination.coordinates,
         });
-        showRouteError(errorMessage);
-        completed++;
-        if (completed === validDestinations.length) {
+        showRouteError(routeError);
+        completedRef.current++;
+        if (completedRef.current === validDestinations.length) {
           dispatch(setCalculating(false));
         }
         continue;
       }
 
-      // Создаем MultiRoute
-      // avoidTrafficJams работает только для режима "auto" (автомобиль)
-      const routeParams: RoutingParams = {
-        routingMode,
-      };
-      if (routingMode === "auto") {
-        routeParams.avoidTrafficJams = true;
-      }
-
-      const route = new window.ymaps.multiRouter.MultiRoute(
-        {
-          referencePoints: [
-            startingPoint.coordinates,
-            destination.coordinates,
-          ],
-          params: routeParams,
-        },
-        {
-          wayPointStartIconColor: ROUTE_COLORS.FASTEST,
-          wayPointFinishIconColor: ROUTE_COLORS.FINISH,
-          routeActiveStrokeColor: i === 0 ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
-          routeActiveStrokeWidth: i === 0 ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
-          opacity: i === 0 ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
-        }
-      );
-
-      // Добавляем маршрут на карту и в ref
-      yandexMapRef.current.geoObjects.add(route);
-      routesRef.current?.push(route);
-
-      // Обработка успешного расчёта
-      route.model.events.add("requestsuccess", () => {
-        // Пытаемся получить активный маршрут, если его нет - берем первый доступный
-        let activeRoute = route.getActiveRoute();
-        if (!activeRoute) {
-          const routes = route.model.getRoutes();
-          if (routes.length === 0) {
-            console.warn(`No routes available for destination #${i + 1}`);
-            completed++;
-            if (completed === validDestinations.length) {
-              const validResults = routeResults.filter((r): r is RouteOption => r !== null);
-              if (validResults.length > 0) {
-                dispatch(setRoutes(validResults));
-              } else {
-                showRouteError(
-                  "Не удалось рассчитать ни один маршрут. Проверьте корректность адресов.",
-                  true
-                );
-              }
-              dispatch(setCalculating(false));
-            }
-            return;
-          }
-          activeRoute = routes[0];
-        }
-
-        // Формируем объект результата
-        const durationProp = activeRoute.properties.get("duration");
-        const distanceProp = activeRoute.properties.get("distance");
-        const blockedProp = activeRoute.properties.get("blocked");
-        
-        const duration = (typeof durationProp === 'object' && durationProp !== null && 'value' in durationProp)
-          ? durationProp.value || 0
-          : 0;
-        const distance = (typeof distanceProp === 'object' && distanceProp !== null && 'value' in distanceProp)
-          ? distanceProp.value || 0
-          : 0;
-        const isBlocked = typeof blockedProp === 'boolean' ? blockedProp : false;
-
-        const opt: RouteOption = {
-          id: `route-${i}`,
+      try {
+        // Создаем MultiRoute
+        const route = createMultiRoute(
+          startingPoint,
           destination,
-          duration,
-          distance,
-          traffic_info: {
-            level: isBlocked ? "heavy" : "light",
-          },
-          geometry: {
-            coordinates: [
-              startingPoint.coordinates,
-              destination.coordinates,
-            ],
-          },
-        };
-        routeResults[i] = opt;
-        completed++;
+          transportMode,
+          i === 0
+        );
 
-        // Когда все маршруты готовы
-        if (completed === validDestinations.length) {
-          // Сохраняем результаты в Redux
-          dispatch(setRoutes(routeResults as RouteOption[]));
-          dispatch(setCalculating(false));
-
-          // Выделяем самый быстрый маршрут
-          const fastestIdx = (routeResults as RouteOption[]).reduce(
-            (best, _, idx, arr) =>
-              arr[idx].duration < arr[best].duration ? idx : best,
-            0
-          );
-
-          routesRef.current?.forEach((multi, idx) => {
-            multi.options.set({
-              routeActiveStrokeColor:
-                idx === fastestIdx ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
-              routeActiveStrokeWidth: idx === fastestIdx ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
-              opacity: idx === fastestIdx ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
-            });
-          });
-
-          // Подгоняем границы карты под все маршруты
-          setTimeout(() => {
-            if (!yandexMapRef.current) return;
-            const bounds = yandexMapRef.current.geoObjects.getBounds();
-            if (bounds && yandexMapRef.current) {
-              yandexMapRef.current.setBounds(bounds, {
-                checkZoomRange: true,
-                zoomMargin: MAP_ZOOM_MARGIN,
-              });
-            }
-          }, MAP_BOUNDS_ADJUSTMENT_DELAY);
+        // Добавляем обработчик клика
+        if (yandexMapRef.current) {
+          addRouteClickHandler(route, i, destination, yandexMapRef.current, dispatch);
         }
-      });
 
-      // Обработка ошибок расчёта
-      route.model.events.add("requestfail", (event?: YandexEvent) => {
-        const errorDetails = event?.get('error') || 'Unknown error';
-        const errorMessage = `Не удалось рассчитать маршрут до пункта назначения #${i + 1}`;
-        
-        console.error(errorMessage, {
-          from: startingPoint.coordinates,
-          to: destination.coordinates,
+        // Добавляем маршрут на карту и в ref
+        yandexMapRef.current.geoObjects.add(route);
+        routesRef.current?.push(route);
+
+        // Обработка успешного расчёта
+        const successHandler = createRouteSuccessHandler(
+          route,
+          i,
+          startingPoint,
+          destination,
+          routeResults,
+          completedRef,
+          validDestinations.length,
+          routesRef,
+          yandexMapRef,
+          dispatch,
+          store
+        );
+        route.model.events.add("requestsuccess", successHandler);
+
+        // Обработка ошибок расчёта
+        const errorHandler = createRouteErrorHandler(
+          i,
+          startingPoint,
+          destination,
           routingMode,
           transportMode,
-          error: errorDetails,
-        });
-        
-        // Показываем ошибку только если это не временная проблема сети
-        // (retry логика должна обработать временные сбои)
-        const errorStr = typeof errorDetails === 'string' ? errorDetails : String(errorDetails);
-        if (errorStr.includes('network') || errorStr.includes('timeout')) {
-          console.warn(`Network error for route #${i + 1}, retry logic should handle this`);
-        } else {
-          // Для других ошибок показываем более информативное сообщение
-          const modeNames: Record<string, string> = {
-            'auto': 'автомобиль',
-            'pedestrian': 'пешком',
-            'bicycle': 'велосипед',
-            'masstransit': 'общественный транспорт',
-          };
-          const modeName = modeNames[routingMode] || transportMode;
-          showRouteError(
-            `${errorMessage} (режим: ${modeName}). Проверьте, доступен ли маршрут для выбранного режима транспорта.`
-          );
-        }
-        
-        completed++;
-        // Если все маршруты завершились (успешно или с ошибкой)
-        if (completed === validDestinations.length) {
-          // Сохраняем результаты, даже если некоторые маршруты не удалось рассчитать
-          const validResults = routeResults.filter((r): r is RouteOption => r !== null);
-          if (validResults.length > 0) {
-            dispatch(setRoutes(validResults));
-          } else {
-            // Если ни один маршрут не был рассчитан, показываем общую ошибку
-            showRouteError(
-              "Не удалось рассчитать ни один маршрут. Проверьте корректность адресов и режим транспорта.",
-              true
-            );
-          }
+          routeResults,
+          completedRef,
+          validDestinations.length,
+          dispatch
+        );
+        route.model.events.add("requestfail", errorHandler);
+      } catch (error) {
+        console.error(`Failed to create route #${i + 1}:`, error);
+        showRouteError(`Не удалось создать маршрут #${i + 1}`);
+        completedRef.current++;
+        if (completedRef.current === validDestinations.length) {
           dispatch(setCalculating(false));
         }
-      });
+      }
     }
   }, [yandexMapRef, routesRef, dispatch]);
 
   return { calculateRoutes };
 }
-
