@@ -71,6 +71,9 @@ export const createRouteSuccessHandler = (
         ],
       },
     };
+    console.log("Routes:", route.model.getRoutes());   
+    console.log("Route calculation success payload:", opt);
+
     routeResults[routeIndex] = opt;
     completedRef.current++;
 

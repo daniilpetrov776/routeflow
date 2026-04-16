@@ -8,6 +8,7 @@ import {
 } from "../lib/route-calculations";
 import { routeRequestSchema } from "../lib/validation-schemas";
 import { handleValidationError, handleError } from "../lib/error-handlers";
+import logger from "../lib/logger";
 
 /**
  * Роут для расчета маршрутов
@@ -97,7 +98,9 @@ export function registerRoutesRoute(app: Express) {
         routeData: routes,
       });
 
-      res.json({ routes, routeId: route.id });
+      const responseBody = { routes, routeId: route.id };
+      logger.info(`Route calculation response body: ${JSON.stringify(responseBody)}`);
+      res.json(responseBody);
     } catch (error) {
       // Обработка ошибок валидации
       if (handleValidationError(error, req, res, "Route calculation")) {
