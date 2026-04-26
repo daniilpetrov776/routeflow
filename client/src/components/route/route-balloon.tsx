@@ -2,22 +2,12 @@ import { useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import type { AddressPoint } from "@/store/route-slice";
+import type { AddressPoint, RouteBalloonData } from "@/store/route-slice";
 import { X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
 import styles from "./route-balloon.module.css";
-
-export interface RouteBalloonData {
-  routeIndex: number;
-  destination: {
-    address: string;
-    coordinates: [number, number];
-  };
-  duration: number;
-  distance: number;
-}
 
 interface RouteBalloonProps {
   data: RouteBalloonData | null;

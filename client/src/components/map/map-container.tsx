@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo, useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector, useDispatch, useStore } from "react-redux";
 import { RootState } from "@/store";
 import { useRouteCalculation } from "@/hooks/useRouteCalculation";
 import { createAllMarkers } from "@/lib/map-markers";
@@ -7,7 +7,15 @@ import { MapControls } from "./map-controls";
 import { MapLoadingState } from "./map-loading-state";
 import { MapCalculatingState } from "./map-calculating-state";
 import { RouteBalloon } from "../route/route-balloon";
-import { closeRouteBalloon, openRouteBalloon, updateRouteBalloonPosition, updateRouteBalloonData, clearRequestedRouteIndex } from "@/store/route-slice";
+import {
+  closeRouteBalloon,
+  openRouteBalloon,
+  updateRouteBalloonPosition,
+  updateRouteBalloonData,
+  clearRequestedRouteIndex,
+  setSelectedAlternative,
+} from "@/store/route-slice";
+import { toYandexRoutesArray } from "@/lib/route/yandex-route-utils";
 import { recalculateBalloonPosition } from "@/lib/route/route-balloon-position";
 import {
   DEFAULT_MAP_CENTER,
@@ -38,6 +46,7 @@ export function MapContainer({
 }: MapContainerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
 
   const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
   const { isCalculating, transportMode, balloon } = useSelector((state: RootState) => state.route);
@@ -97,6 +106,62 @@ export function MapContainer({
     }
   }, [calculatedRoutes, fastestIndex, yandexMapRef, routesRef]);
 
+  // Redux → карта: активная альтернатива
+  useEffect(() => {
+    if (!routesRef.current?.length || calculatedRoutes.length === 0) return;
+    calculatedRoutes.forEach((ro, idx) => {
+      const multi = routesRef.current![idx];
+      if (!multi) return;
+      const yaRoutes = toYandexRoutesArray(multi.model.getRoutes());
+      const want = ro.selectedAlternativeIndex ?? 0;
+      if (want < 0 || want >= yaRoutes.length || !yaRoutes[want]) return;
+      const current = multi.getActiveRoute();
+      if (current !== yaRoutes[want]) {
+        try {
+          multi.setActiveRoute(yaRoutes[want]);
+        } catch {
+          // ignore
+        }
+      }
+    });
+  }, [calculatedRoutes, routesRef]);
+
+  // Карта → Redux: пользователь сменил активный маршрут на карте
+  useEffect(() => {
+    const multis = routesRef.current;
+    if (!multis?.length) return;
+
+    const cleanups: Array<() => void> = [];
+
+    multis.forEach((multi, routeIdx) => {
+      const handler = () => {
+        const yaRoutes = toYandexRoutesArray(multi.model.getRoutes());
+        const active = multi.getActiveRoute();
+        const found = active ? yaRoutes.findIndex((r) => r === active) : 0;
+        const validIdx = found >= 0 ? found : 0;
+        const ro = store.getState().route.routes[routeIdx];
+        if (!ro?.alternatives?.length) return;
+        if (validIdx >= ro.alternatives.length) return;
+        const cur = ro.selectedAlternativeIndex ?? 0;
+        if (validIdx !== cur) {
+          store.dispatch(setSelectedAlternative({ routeIndex: routeIdx, alternativeIndex: validIdx }));
+        }
+      };
+      multi.events.add("activeroutechange", handler);
+      cleanups.push(() => {
+        try {
+          multi.events.remove("activeroutechange", handler);
+        } catch {
+          // ignore
+        }
+      });
+    });
+
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
+  }, [calculatedRoutes, routesRef, store]);
+
   // Эффект для открытия balloon по запросу из Redux
   useEffect(() => {
     if (requestedRouteIndex === null || !yandexMapRef.current || requestedRouteIndex < 0 || 
@@ -132,6 +197,7 @@ export function MapContainer({
           destination: routeOption.destination,
           duration: routeOption.duration,
           distance: routeOption.distance,
+          alternativeIndex: routeOption.selectedAlternativeIndex,
         },
         position: balloonPosition,
       }));
@@ -162,21 +228,15 @@ export function MapContainer({
       
       // Обновляем данные balloon сразу, как только маршрут готов
       // Проверяем, изменились ли данные, чтобы не обновлять без необходимости
-      if (balloon.data.duration !== routeOption.duration || 
+      if (balloon.data.duration !== routeOption.duration ||
           balloon.data.distance !== routeOption.distance ||
-          balloon.data.routeIndex !== routeIndex) {
-        console.log('Updating balloon data immediately:', { 
-          oldDuration: balloon.data.duration, 
-          newDuration: routeOption.duration,
-          oldDistance: balloon.data.distance,
-          newDistance: routeOption.distance,
-          routeIndex,
-          transportMode
-        });
+          balloon.data.routeIndex !== routeIndex ||
+          balloon.data.alternativeIndex !== routeOption.selectedAlternativeIndex) {
         dispatch(updateRouteBalloonData({
           duration: routeOption.duration,
           distance: routeOption.distance,
           routeIndex,
+          alternativeIndex: routeOption.selectedAlternativeIndex,
         }));
       }
     }
@@ -194,7 +254,8 @@ export function MapContainer({
     // Проверяем, изменились ли данные маршрута (duration/distance) - значит маршрут пересчитался
     const routeDataChanged = lastBalloonDataRef.current && (
       lastBalloonDataRef.current.duration !== balloon.data.duration ||
-      lastBalloonDataRef.current.distance !== balloon.data.distance
+      lastBalloonDataRef.current.distance !== balloon.data.distance ||
+      lastBalloonDataRef.current.alternativeIndex !== balloon.data.alternativeIndex
     );
     
     // Если balloon только что открыт (нет предыдущих данных), не пересчитываем позицию

@@ -10,9 +10,8 @@ export interface AddressPoint {
   coordinates: [number, number];
 }
 
-export interface RouteOption {
+export interface RouteAlternative {
   id: string;
-  destination: AddressPoint;
   duration: number;
   distance: number;
   traffic_info: {
@@ -23,11 +22,57 @@ export interface RouteOption {
   };
 }
 
+export interface RouteOption {
+  id: string;
+  destination: AddressPoint;
+  /** Метрики выбранной альтернативы (дублируют alternatives[selectedAlternativeIndex]) */
+  duration: number;
+  distance: number;
+  traffic_info: {
+    level: 'light' | 'moderate' | 'heavy';
+  };
+  geometry?: {
+    coordinates: [number, number][];
+  };
+  alternatives: RouteAlternative[];
+  selectedAlternativeIndex: number;
+}
+
+/** Вход для миграции: поля альтернатив могут отсутствовать */
+export type RouteOptionLike = Omit<RouteOption, 'alternatives' | 'selectedAlternativeIndex'> & {
+  alternatives?: RouteAlternative[];
+  selectedAlternativeIndex?: number;
+};
+
+/** Нормализует маршрут из старых данных (без alternatives) */
+export function ensureRouteOption(option: RouteOptionLike): RouteOption {
+  if (
+    option.alternatives &&
+    option.alternatives.length > 0 &&
+    typeof option.selectedAlternativeIndex === 'number'
+  ) {
+    return option as RouteOption;
+  }
+  const single: RouteAlternative = {
+    id: `${option.id}-alt-0`,
+    duration: option.duration,
+    distance: option.distance,
+    traffic_info: { ...option.traffic_info },
+    geometry: option.geometry ? { coordinates: [...option.geometry.coordinates] } : undefined,
+  };
+  return {
+    ...option,
+    alternatives: [single],
+    selectedAlternativeIndex: 0,
+  };
+}
+
 export interface RouteBalloonData {
   routeIndex: number;
   destination: AddressPoint;
   duration: number;
   distance: number;
+  alternativeIndex?: number;
 }
 
 export interface RouteBalloonState {
@@ -133,10 +178,26 @@ const routeSlice = createSlice({
       state.error = null;
     },
     setRoutes: (state, action: PayloadAction<RouteOption[]>) => {
-      state.routes = action.payload;
+      state.routes = action.payload.map(ensureRouteOption);
 
       state.isCalculating = false;
       state.error = null;
+    },
+
+    setSelectedAlternative: (
+      state,
+      action: PayloadAction<{ routeIndex: number; alternativeIndex: number }>
+    ) => {
+      const { routeIndex, alternativeIndex } = action.payload;
+      const r = state.routes[routeIndex];
+      if (!r?.alternatives?.length) return;
+      const clamped = Math.max(0, Math.min(alternativeIndex, r.alternatives.length - 1));
+      const alt = r.alternatives[clamped];
+      r.selectedAlternativeIndex = clamped;
+      r.duration = alt.duration;
+      r.distance = alt.distance;
+      r.traffic_info = { ...alt.traffic_info };
+      r.geometry = alt.geometry ? { coordinates: [...alt.geometry.coordinates] } : r.geometry;
     },
 
     setCalculating: (state, action: PayloadAction<boolean>) => {
@@ -163,11 +224,22 @@ const routeSlice = createSlice({
         state.balloon.position = action.payload;
       }
     },
-    updateRouteBalloonData: (state, action: PayloadAction<{ duration: number; distance: number; routeIndex: number }>) => {
+    updateRouteBalloonData: (
+      state,
+      action: PayloadAction<{
+        duration: number;
+        distance: number;
+        routeIndex: number;
+        alternativeIndex?: number;
+      }>
+    ) => {
       if (state.balloon.data) {
         state.balloon.data.duration = action.payload.duration;
         state.balloon.data.distance = action.payload.distance;
         state.balloon.data.routeIndex = action.payload.routeIndex;
+        if (action.payload.alternativeIndex !== undefined) {
+          state.balloon.data.alternativeIndex = action.payload.alternativeIndex;
+        }
       }
     },
     requestOpenRouteBalloonByIndex: (state, action: PayloadAction<number>) => {
@@ -200,6 +272,7 @@ export const {
   updateDestination,
   setTransportMode,
   setRoutes,
+  setSelectedAlternative,
   setCalculating,
   setError,
   clearRoutes,

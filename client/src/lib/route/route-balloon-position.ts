@@ -3,6 +3,18 @@ import type { YandexMultiRoute, YandexMap } from "@/types/yandex-maps";
 import type { Coordinates } from "@/types/yandex-maps";
 import { coordinatesToPixels } from "../balloon";
 
+function getRouteOptionPolyline(routeOption: RouteOption): [number, number][] | null {
+  const idx = routeOption.selectedAlternativeIndex ?? 0;
+  const alt = routeOption.alternatives?.[idx];
+  if (alt?.geometry?.coordinates?.length) {
+    return alt.geometry.coordinates;
+  }
+  if (routeOption.geometry?.coordinates?.length) {
+    return routeOption.geometry.coordinates;
+  }
+  return null;
+}
+
 /**
  * Получает координаты середины маршрута
  */
@@ -79,8 +91,9 @@ export const getRouteMidpointFromOption = (
   routeOption: RouteOption,
   startingPoint?: AddressPoint
 ): Coordinates | null => {
-  if (routeOption.geometry?.coordinates && routeOption.geometry.coordinates.length > 0) {
-    const coords = routeOption.geometry.coordinates;
+  const polyline = getRouteOptionPolyline(routeOption);
+  if (polyline && polyline.length > 0) {
+    const coords = polyline;
     
     // Если есть больше 2 точек, используем середину массива
     if (coords.length > 2) {
@@ -102,7 +115,7 @@ export const getRouteMidpointFromOption = (
       return coords[0];
     }
   }
-  
+
   // Если нет geometry, но есть startingPoint, вычисляем середину между началом и назначением
   if (startingPoint) {
     const dest = routeOption.destination;

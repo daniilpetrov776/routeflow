@@ -2,7 +2,13 @@
  * Библиотека для работы с сохранением маршрутов в localStorage
  */
 
-import type { AddressPoint, TransportMode, RouteOption } from '@/store/route-slice';
+import {
+  ensureRouteOption,
+  type AddressPoint,
+  type TransportMode,
+  type RouteOption,
+  type RouteOptionLike,
+} from '@/store/route-slice';
 import { getItem, setItem, removeItem, hasItem } from './storage';
 
 /**
@@ -35,7 +41,7 @@ export interface SavedRoutes {
 /**
  * Версия формата данных
  */
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 /**
  * Генерирует уникальный ID для маршрута
@@ -49,6 +55,25 @@ function generateRouteId(): string {
  * @returns Объект с сохраненными маршрутами или null, если ничего не сохранено
  * @throws {LocalStorageError} Если произошла ошибка при загрузке
  */
+function migrateSavedRoutes(data: SavedRoutes): SavedRoutes {
+  if (data.version >= CURRENT_VERSION) {
+    return data;
+  }
+  if (data.version === 1 || data.version === undefined) {
+    const migrated: SavedRoutes = {
+      version: CURRENT_VERSION,
+      routes: data.routes.map((sr) => ({
+        ...sr,
+        routes: sr.routes.map((r) => ensureRouteOption(r as RouteOptionLike)),
+      })),
+    };
+    setItem(ROUTES_STORAGE_KEY, migrated);
+    return migrated;
+  }
+  console.warn(`Версия данных (${data.version}) не совпадает с текущей (${CURRENT_VERSION})`);
+  return data;
+}
+
 export function loadSavedRoutes(): SavedRoutes | null {
   const data = getItem<SavedRoutes>(ROUTES_STORAGE_KEY);
   
@@ -56,13 +81,7 @@ export function loadSavedRoutes(): SavedRoutes | null {
     return null;
   }
 
-  // Проверка версии и миграция при необходимости
-  if (data.version !== CURRENT_VERSION) {
-    // В будущем здесь можно добавить логику миграции
-    console.warn(`Версия данных (${data.version}) не совпадает с текущей (${CURRENT_VERSION})`);
-  }
-
-  return data;
+  return migrateSavedRoutes(data);
 }
 
 /**

@@ -115,6 +115,7 @@ export interface MultiRouteModel {
  */
 export interface YandexMultiRoute {
   getActiveRoute(): YandexRoute | null;
+  setActiveRoute(route: YandexRoute | null): void;
   model: MultiRouteModel;
   options: {
     set(options: MultiRouteOptions): void;

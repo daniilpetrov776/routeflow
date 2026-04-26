@@ -87,6 +87,8 @@ export {
   createRouteSuccessHandler,
 } from './route-success-handler';
 
+export { toYandexRoutesArray } from './yandex-route-utils';
+
 export {
   createRouteErrorHandler,
 } from './route-error-handler';
