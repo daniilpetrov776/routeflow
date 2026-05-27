@@ -4,7 +4,6 @@ import { RootState } from "@/store";
 import { AddressInput } from "../address/address-input";
 import { RouteResults } from "./route-results";
 import { SidebarHeader } from "../sidebar-header";
-import { DestinationsSection } from "./destinations-section";
 import { RouteSummary } from "./route-summary";
 import { TransportModeSelector } from "./transport-mode-selector";
 import styles from "./route-sidebar.module.css";
@@ -25,7 +24,6 @@ export function RouteSidebarContent({
 }: RouteSidebarContentProps) {
   const {
     startingPoint,
-    destinations,
     routes,
     error,
   } = useSelector((state: RootState) => state.route);
@@ -50,8 +48,6 @@ export function RouteSidebarContent({
             />
           </motion.div>
 
-          <DestinationsSection destinations={destinations} error={error} />
-
           <motion.div
             layout="position"
             transition={{ duration: 0.24, ease: "easeOut" }}
@@ -71,7 +67,7 @@ export function RouteSidebarContent({
           transition={{ duration: 0.24, ease: "easeOut" }}
           className={styles["route-sidebar__results"]}
         >
-          <RouteResults />
+          <RouteResults error={error}/>
         </motion.div>
 
         <motion.div layout="position" transition={{ duration: 0.24, ease: "easeOut" }}>

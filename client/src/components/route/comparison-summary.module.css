@@ -1,0 +1,23 @@
+.insights {
+  @apply mb-3 grid grid-cols-3 gap-2 rounded-md border border-border bg-muted p-2;
+}
+
+.insight {
+  @apply min-w-0 rounded-md bg-background px-2 py-2;
+}
+
+.insightLabel {
+  @apply block truncate text-[0.68rem] font-medium text-muted-foreground;
+}
+
+.insightValue {
+  @apply block truncate text-xs font-semibold text-foreground;
+}
+
+/* Мобильные устройства (до 768px) */
+@media (max-width: 768px) {
+  .insights {
+    @apply grid-cols-1;
+  }
+}
+

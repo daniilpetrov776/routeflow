@@ -1,45 +1,39 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { LayoutGroup, motion } from "framer-motion";
+import { LayoutGroup } from "framer-motion";
 import { RootState } from "@/store";
 import {
+  removeDestination,
   requestOpenRouteBalloonByIndex,
   setRouteSortMode,
   setSelectedAlternative,
 } from "@/store/route-slice";
 import { getRouteDisplayItems } from "@/lib/route/route-display-order";
-import { formatDistance, formatDuration } from "@/lib/route";
+import { AddressInput } from "../address/address-input";
 import { RouteCard } from "./route-card";
 import styles from "./route-results.module.css";
+import { DestinationsSection } from "./destinations-section";
+import { ComparisonSummary, type RouteDisplayItem } from "./comparison-summary";
+import { RouteCardMotion, routeCardMotionStyles } from "./route-card-motion";
 
-export function RouteResults() {
+export function RouteResults({ error }: { error: string | null }) {
   const { routes, routeSortMode, transportMode, isCalculating, destinations } = useSelector((state: RootState) => state.route);
   const dispatch = useDispatch();
+  const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const prevLengthRef = useRef(destinations.length);
+
+  const isSameDestination = (
+    a: { address: string; coordinates: [number, number] },
+    b: { address: string; coordinates: [number, number] }
+  ) =>
+    a.address === b.address &&
+    Math.abs(a.coordinates[0] - b.coordinates[0]) < 0.0001 &&
+    Math.abs(a.coordinates[1] - b.coordinates[1]) < 0.0001;
 
   const sortedRoutes = useMemo(
     () => getRouteDisplayItems(routes, routeSortMode, transportMode),
     [routes, routeSortMode, transportMode]
   );
-
-  const comparisonSummary = useMemo(() => {
-    if (routes.length === 0 || sortedRoutes.length === 0) return null;
-
-    const fastest = sortedRoutes.reduce((best, item) =>
-      item.route.duration < best.route.duration ? item : best
-    );
-    const shortest = sortedRoutes.reduce((best, item) =>
-      item.route.distance < best.route.distance ? item : best
-    );
-    const recommended = sortedRoutes[0];
-
-    return {
-      recommended: recommended.originalIndex + 1,
-      fastest: fastest.originalIndex + 1,
-      fastestValue: formatDuration(fastest.route.duration),
-      shortest: shortest.originalIndex + 1,
-      shortestValue: formatDistance(shortest.route.distance),
-    };
-  }, [routes.length, sortedRoutes]);
 
   const loadingCardCount = useMemo(() => {
     const validDestinations = destinations.filter((destination) => destination.address?.trim()).length;
@@ -55,12 +49,79 @@ export function RouteResults() {
     }
   }, [dispatch, routeSortMode, transportMode]);
 
+  useEffect(() => {
+    if (destinations.length > prevLengthRef.current) {
+      const lastIndex = destinations.length - 1;
+      const lastInput = inputRefs.current.get(lastIndex);
+      if (lastInput && !destinations[lastIndex]?.address) {
+        setTimeout(() => {
+          const scrollContainer = lastInput.closest('[class*="route-sidebar"]') as HTMLElement | null;
+          const scrollTop = scrollContainer?.scrollTop;
+          lastInput.focus({ preventScroll: true });
+          if (scrollContainer && scrollTop !== undefined) {
+            scrollContainer.scrollTop = scrollTop;
+            requestAnimationFrame(() => {
+              scrollContainer.scrollTop = scrollTop;
+            });
+          }
+        }, 0);
+      }
+    }
+    prevLengthRef.current = destinations.length;
+  }, [destinations]);
+
+  const setInputRef = (index: number, ref: HTMLInputElement | null) => {
+    if (ref) {
+      inputRefs.current.set(index, ref);
+      return;
+    }
+    inputRefs.current.delete(index);
+  };
+
+  const pendingDestinationIndexes = useMemo(
+    () =>
+      destinations
+        .map((destination, index) => ({ destination, index }))
+        .filter(({ destination }) => !routes.some((route) => isSameDestination(route.destination, destination)))
+        .map(({ index }) => index),
+    [destinations, routes]
+  );
+
+  const handleRemoveByRoute = (originalIndex: number) => {
+    const destination = routes[originalIndex]?.destination;
+    if (!destination) return;
+
+    const destinationIndex = destinations.findIndex((item) =>
+      isSameDestination(item, destination)
+    );
+
+    if (destinationIndex >= 0) {
+      dispatch(removeDestination(destinationIndex));
+    }
+  };
+
   if (routes.length === 0) {
     return (
       <div className={styles["route-results"]}>
         <div className={styles["route-results__header"]}>
           <h3 className={styles["route-results__title"]}>Варианты маршрутов</h3>
         </div>
+        <DestinationsSection error={error} />
+        <LayoutGroup>
+          {pendingDestinationIndexes.map((destinationIndex) => (
+            <RouteCardMotion motionKey={`pending-route-${destinationIndex}`}>
+              <div className={routeCardMotionStyles.pendingCard}>
+                <AddressInput
+                  ref={(ref) => setInputRef(destinationIndex, ref)}
+                  value={destinations[destinationIndex]?.address ?? ""}
+                  placeholder="Введите пункт назначения..."
+                  type="destination"
+                  index={destinationIndex}
+                />
+              </div>
+            </RouteCardMotion>
+          ))}
+        </LayoutGroup>
         {isCalculating ? (
           <div className={styles["route-results__loading-list"]} aria-live="polite">
             {Array.from({ length: loadingCardCount }).map((_, index) => (
@@ -82,12 +143,12 @@ export function RouteResults() {
               </div>
             ))}
           </div>
-        ) : (
+        ) : pendingDestinationIndexes.length === 0 ? (
           <div className={styles["route-results__empty-content"]}>
             <div className={styles["route-results__empty-icon"]}>🗺️</div>
             <p>Рассчитайте маршруты, чтобы увидеть варианты</p>
           </div>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -97,65 +158,10 @@ export function RouteResults() {
       <div className={styles["route-results__header"]}>
         <h3 className={styles["route-results__title"]}>Варианты маршрутов</h3>
       </div>
-      <div className={styles["route-results__sort"]} aria-label="Сортировка маршрутов">
-        <button
-          type="button"
-          className={`${styles["route-results__sort-button"]} ${
-            routeSortMode === "time" ? styles["route-results__sort-button--active"] : ""
-          }`}
-          onClick={() => dispatch(setRouteSortMode("time"))}
-        >
-          Время
-        </button>
-        <button
-          type="button"
-          className={`${styles["route-results__sort-button"]} ${
-            routeSortMode === "distance" ? styles["route-results__sort-button--active"] : ""
-          }`}
-          onClick={() => dispatch(setRouteSortMode("distance"))}
-        >
-          Расстояние
-        </button>
-        {transportMode === "driving" && (
-          <button
-            type="button"
-            className={`${styles["route-results__sort-button"]} ${
-              routeSortMode === "traffic" ? styles["route-results__sort-button--active"] : ""
-            }`}
-            onClick={() => dispatch(setRouteSortMode("traffic"))}
-          >
-            Пробки
-          </button>
-        )}
-        {transportMode === "transit" && (
-          <button
-            type="button"
-            className={`${styles["route-results__sort-button"]} ${
-              routeSortMode === "transfers" ? styles["route-results__sort-button--active"] : ""
-            }`}
-            onClick={() => dispatch(setRouteSortMode("transfers"))}
-          >
-            Пересадки
-          </button>
-        )}
-      </div>
 
-      {comparisonSummary && (
-        <div className={styles["route-results__insights"]}>
-          <div className={styles["route-results__insight"]}>
-            <span className={styles["route-results__insight-label"]}>Рекомендован</span>
-            <strong>#{comparisonSummary.recommended}</strong>
-          </div>
-          <div className={styles["route-results__insight"]}>
-            <span className={styles["route-results__insight-label"]}>Быстрее</span>
-            <strong>#{comparisonSummary.fastest} · {comparisonSummary.fastestValue}</strong>
-          </div>
-          <div className={styles["route-results__insight"]}>
-            <span className={styles["route-results__insight-label"]}>Короче</span>
-            <strong>#{comparisonSummary.shortest} · {comparisonSummary.shortestValue}</strong>
-          </div>
-        </div>
-      )}
+      <DestinationsSection error={error} />
+
+      <ComparisonSummary items={sortedRoutes as RouteDisplayItem[]} />
 
       {isCalculating && (
         <div className={styles["route-results__soft-loader"]} aria-live="polite">
@@ -165,25 +171,34 @@ export function RouteResults() {
       )}
 
       <LayoutGroup>
+        {pendingDestinationIndexes.map((destinationIndex) => (
+          <RouteCardMotion motionKey={`pending-route-${destinationIndex}`}>
+            <div className={routeCardMotionStyles.pendingCard}>
+              <AddressInput
+                ref={(ref) => setInputRef(destinationIndex, ref)}
+                value={destinations[destinationIndex]?.address ?? ""}
+                placeholder="Введите пункт назначения..."
+                type="destination"
+                index={destinationIndex}
+              />
+            </div>
+          </RouteCardMotion>
+        ))}
         {sortedRoutes.map(({ route, originalIndex, colorIndex, isRecommended }) => (
-          <motion.div
-            key={route.id}
-            layout
-            transition={{ duration: 0.24, ease: "easeOut" }}
-            className={styles["route-results__card-motion"]}
-          >
-            <RouteCard
-              route={route}
-              routes={routes}
-              index={colorIndex}
-              isRecommended={isRecommended}
-              transportMode={transportMode}
-              onClick={() => dispatch(requestOpenRouteBalloonByIndex(originalIndex))}
-              onSelectAlternative={(alternativeIndex) =>
-                dispatch(setSelectedAlternative({ routeIndex: originalIndex, alternativeIndex }))
-              }
-            />
-          </motion.div>
+          <RouteCardMotion motionKey={route.id}>
+          <RouteCard
+            route={route}
+            routes={routes}
+            index={colorIndex}
+            isRecommended={isRecommended}
+            transportMode={transportMode}
+            onClick={() => dispatch(requestOpenRouteBalloonByIndex(originalIndex))}
+            onSelectAlternative={(alternativeIndex) =>
+              dispatch(setSelectedAlternative({ routeIndex: originalIndex, alternativeIndex }))
+            }
+            onRemove={() => handleRemoveByRoute(originalIndex)}
+          />
+        </RouteCardMotion>
         ))}
       </LayoutGroup>
     </div>

@@ -1,26 +1,19 @@
 import { useDispatch } from "react-redux";
-import { useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { addDestination } from "@/store/route-slice";
 import { Button } from "@/components/ui/button";
-import { AddressInput } from "../address/address-input";
 import { Plus } from "lucide-react";
 import { MOSCOW_CENTER } from "@/lib/map-constants";
-import type { AddressPoint } from "@/store/route-slice";
 import styles from "./route-sidebar.module.css";
 
 interface DestinationsSectionProps {
-  destinations: AddressPoint[];
   error?: string | null;
 }
 
 export function DestinationsSection({
-  destinations,
   error,
 }: DestinationsSectionProps) {
   const dispatch = useDispatch();
-  const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
-  const prevLengthRef = useRef(destinations.length);
 
   const handleAddDestination = () => {
     dispatch(
@@ -31,71 +24,8 @@ export function DestinationsSection({
     );
   };
 
-  // Устанавливаем фокус на последний input только когда добавляется новое поле
-  useEffect(() => {
-    // Если длина массива увеличилась - значит добавили новое поле
-    if (destinations.length > prevLengthRef.current) {
-      const lastIndex = destinations.length - 1;
-      const lastInput = inputRefs.current.get(lastIndex);
-      
-      // Устанавливаем фокус только если поле пустое (новое)
-      if (lastInput && !destinations[lastIndex]?.address) {
-        // Небольшая задержка для гарантии, что DOM обновился
-        setTimeout(() => {
-          const scrollContainer = lastInput.closest('[class*="route-sidebar"]') as HTMLElement | null;
-          const scrollTop = scrollContainer?.scrollTop;
-          lastInput.focus({ preventScroll: true });
-          if (scrollContainer && scrollTop !== undefined) {
-            scrollContainer.scrollTop = scrollTop;
-            requestAnimationFrame(() => {
-              scrollContainer.scrollTop = scrollTop;
-            });
-          }
-        }, 0);
-      }
-    }
-    
-    prevLengthRef.current = destinations.length;
-  }, [destinations.length, destinations]);
-
-  const setInputRef = (index: number, ref: HTMLInputElement | null) => {
-    if (ref) {
-      inputRefs.current.set(index, ref);
-    } else {
-      inputRefs.current.delete(index);
-    }
-  };
-
   return (
     <div className={styles["route-sidebar__destinations"]}>
-      <div className={styles["route-sidebar__destinations-header"]}>
-        <label className={styles["route-sidebar__destinations-label"]}>
-          Пункты назначения
-        </label>
-      </div>
-
-      <AnimatePresence initial={false}>
-        {destinations.map((destination, index) => (
-          <motion.div
-            key={index}
-            layout="position"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className={styles["route-sidebar__destinations-item"]}
-          >
-            <AddressInput
-              ref={(ref) => setInputRef(index, ref)}
-              value={destination.address}
-              placeholder="Введите адрес назначения..."
-              type="destination"
-              index={index}
-            />
-          </motion.div>
-        ))}
-      </AnimatePresence>
-
       <motion.div layout="position" transition={{ duration: 0.24, ease: "easeOut" }}>
         <Button
           variant="outline"

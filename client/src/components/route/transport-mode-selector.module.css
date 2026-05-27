@@ -9,6 +9,12 @@
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
+.transport-mode-selector__button:focus-visible {
+  outline: none;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.65);
+}
+
 .transport-mode-selector__button--active {
   @apply border-border bg-background text-foreground shadow-sm;
   background-color: var(--background) !important;
@@ -16,6 +22,11 @@
   color: var(--foreground) !important;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 8%, transparent) !important;
   transform: none;
+}
+
+.transport-mode-selector__button--active:focus-visible {
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.65) !important;
 }
 
 .transport-mode-selector__button--active .transport-mode-selector__icon,
@@ -32,6 +43,11 @@
 
 .transport-mode-selector__button--inactive:hover {
   border-color: var(--border) !important;
+}
+
+.transport-mode-selector__button--inactive:focus-visible {
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.65) !important;
 }
 
 .transport-mode-selector__icon {

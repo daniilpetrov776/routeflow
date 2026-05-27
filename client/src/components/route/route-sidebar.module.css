@@ -195,15 +195,7 @@
 }
 
 .route-sidebar__destinations {
-  /* Пустой блок для структуры */
-}
-
-.route-sidebar__destinations-header {
-  @apply flex items-center justify-between mb-2;
-}
-
-.route-sidebar__destinations-label {
-  @apply block text-sm font-medium text-muted-foreground;
+  @apply space-y-2;
 }
 
 .route-sidebar__destinations-add-button {
@@ -218,10 +210,6 @@
 
 .route-sidebar__destinations-add-icon {
   @apply h-4 w-4 mr-1;
-}
-
-.route-sidebar__destinations-item {
-  @apply mb-3;
 }
 
 .route-sidebar__error {

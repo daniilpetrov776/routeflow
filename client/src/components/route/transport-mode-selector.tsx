@@ -30,15 +30,23 @@ export function TransportModeSelector() {
   };
 
   return (
-    <div className={styles["transport-mode-selector"]}>
+    <div
+      className={styles["transport-mode-selector"]}
+      role="radiogroup"
+      aria-label="Выбор способа передвижения"
+    >
       {transportModes.map(({ mode, label, icon: Icon }) => {
         const isActive = transportMode === mode;
 
         return (
           <Button
             key={mode}
+            type="button"
             variant="outline"
             size="sm"
+            role="radio"
+            tabIndex={0}
+            aria-checked={isActive}
             aria-pressed={isActive}
             onClick={(e) => handleModeChange(mode, e)}
             className={`${styles["transport-mode-selector__button"]} ${isActive

@@ -3,10 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import type { CSSProperties } from "react";
 import { getRouteColor } from "@/lib/map-constants";
 import { formatDuration, formatDistance } from "@/lib/route";
-import { getAlternativeSummary, getRouteComparison } from "@/lib/route/route-comparison";
+import { getRouteComparison } from "@/lib/route/route-comparison";
 import { sanitizeText } from "@/lib/sanitize";
 import type { RouteOption, TransportMode } from "@/store/route-slice";
 import styles from "./route-results.module.css";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface RouteCardProps {
   route: RouteOption;
@@ -16,6 +18,7 @@ interface RouteCardProps {
   transportMode: TransportMode;
   onClick?: () => void;
   onSelectAlternative?: (alternativeIndex: number) => void;
+  onRemove?: () => void;
 }
 
 /**
@@ -65,12 +68,12 @@ export function RouteCard({
   transportMode,
   onClick,
   onSelectAlternative,
+  onRemove,
 }: RouteCardProps) {
   const routeColor = getRouteColor(index);
   const hasAlternatives = route.alternatives.length > 1;
   const showStairs = transportMode === "walking" || transportMode === "cycling";
   const comparison = getRouteComparison(route, routes, transportMode);
-  const baseAlternative = route.alternatives[0];
 
   return (
     <Card
@@ -91,11 +94,27 @@ export function RouteCard({
               {sanitizeText(truncateAddress(route.destination.address))}
             </span>
           </div>
-          {isRecommended && (
-            <Badge variant="secondary" className={styles["route-results__card-badge"]}>
-              Рекомендуемый
-            </Badge>
-          )}
+          <div className={styles["route-results__card-header-right"]}>
+            {isRecommended && (
+              <Badge variant="secondary" className={styles["route-results__card-badge"]}>
+                Рекомендуемый
+              </Badge>
+            )}
+            {onRemove && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Удалить маршрут"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemove();
+                }}
+              >
+                <Trash2 className={styles["route-results__remove-icon"]} />
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className={styles["route-results__card-grid"]}>
@@ -158,13 +177,6 @@ export function RouteCard({
                     </span>
                     <span>{formatDuration(alternative.duration)}</span>
                     <span>{formatDistance(alternative.distance)}</span>
-                    {baseAlternative && (
-                      <span className={styles["route-results__alternative-summary"]}>
-                        {alternativeIndex === 0
-                          ? "база сравнения"
-                          : getAlternativeSummary(alternative, baseAlternative, transportMode)}
-                      </span>
-                    )}
                   </button>
                 );
               })}

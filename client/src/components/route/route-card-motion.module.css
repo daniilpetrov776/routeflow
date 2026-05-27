@@ -1,0 +1,16 @@
+.cardMotion {
+  @apply relative;
+}
+
+.removeButton {
+  @apply absolute right-3 top-3 z-[1] h-8 w-8 rounded-md text-muted-foreground hover:bg-accent hover:text-destructive;
+}
+
+.removeIcon {
+  @apply h-4 w-4;
+}
+
+.pendingCard {
+  @apply rounded-lg border border-border bg-card p-2;
+}
+
