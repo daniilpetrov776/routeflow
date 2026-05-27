@@ -72,7 +72,7 @@ export function MapContainer({
     }
   }, [balloon.data]);
 
-  const { calculateRoutes } = useRouteCalculation({
+  const { calculateRoutes, clearCalculatedRoutes } = useRouteCalculation({
     yandexMapRef,
     routesRef,
   });
@@ -88,8 +88,8 @@ export function MapContainer({
   );
 
   const routeDisplayItems = useMemo(
-    () => getRouteDisplayItems(calculatedRoutes, routeSortMode),
-    [calculatedRoutes, routeSortMode]
+    () => getRouteDisplayItems(calculatedRoutes, routeSortMode, transportMode),
+    [calculatedRoutes, routeSortMode, transportMode]
   );
 
   const routeColorIndexByOriginalIndex = useMemo(() => {
@@ -97,6 +97,11 @@ export function MapContainer({
       routeDisplayItems.map((item) => [item.originalIndex, item.colorIndex])
     );
   }, [routeDisplayItems]);
+
+  const recommendedRouteIndex = useMemo(
+    () => routeDisplayItems.find((item) => item.isRecommended)?.originalIndex ?? -1,
+    [routeDisplayItems]
+  );
 
   const getRouteColorIndex = useCallback(
     (routeIndex: number) => routeColorIndexByOriginalIndex.get(routeIndex) ?? routeIndex,
@@ -129,7 +134,7 @@ export function MapContainer({
     // Сначала обновляем стили всех маршрутов
     routesRef.current.forEach((multiRouteObj, idx) => {
       const colorIndex = getRouteColorIndex(idx);
-      const isRecommended = colorIndex === 0;
+      const isRecommended = idx === recommendedRouteIndex;
       const routeColor = getRouteColor(colorIndex);
       multiRouteObj.options.set({
         wayPointVisible: false,
@@ -148,15 +153,15 @@ export function MapContainer({
       yandexMapRef.current?.geoObjects.remove(route);
     });
     routesRef.current.forEach((route, idx) => {
-      if (getRouteColorIndex(idx) !== 0) {
+      if (idx !== recommendedRouteIndex) {
         yandexMapRef.current?.geoObjects.add(route);
       }
     });
-    const recommendedRoute = routesRef.current.find((_, idx) => getRouteColorIndex(idx) === 0);
+    const recommendedRoute = routesRef.current.find((_, idx) => idx === recommendedRouteIndex);
     if (recommendedRoute) {
       yandexMapRef.current.geoObjects.add(recommendedRoute);
     }
-  }, [calculatedRoutes, getRouteColorIndex, yandexMapRef, routesRef]);
+  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, yandexMapRef, routesRef]);
 
   useEffect(() => {
     if (!yandexMapRef.current || !window.ymaps) return;
@@ -189,7 +194,7 @@ export function MapContainer({
       if (!coordinates || coordinates.length < 2) return;
 
       const colorIndex = getRouteColorIndex(routeIndex);
-      const isRecommended = colorIndex === 0;
+      const isRecommended = routeIndex === recommendedRouteIndex;
       const color = getRouteColor(colorIndex);
       const width = isRecommended
         ? ROUTE_STYLES.FASTEST_STROKE_WIDTH
@@ -217,7 +222,7 @@ export function MapContainer({
       });
       selectedRouteOverlaysRef.current = [];
     };
-  }, [calculatedRoutes, getRouteColorIndex, yandexMapRef]);
+  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, yandexMapRef]);
 
   // Redux → карта: активная альтернатива
   useEffect(() => {
@@ -240,10 +245,10 @@ export function MapContainer({
       applyRouteLineAppearance(
         multi,
         getRouteColor(colorIndex),
-        colorIndex === 0 ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH
+        idx === recommendedRouteIndex ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH
       );
     });
-  }, [calculatedRoutes, getRouteColorIndex, routesRef]);
+  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, routesRef]);
 
   // Карта → Redux: пользователь сменил активный маршрут на карте
   useEffect(() => {
@@ -269,7 +274,7 @@ export function MapContainer({
         applyRouteLineAppearance(
           multi,
           getRouteColor(colorIndex),
-          colorIndex === 0 ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH
+          routeIdx === recommendedRouteIndex ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH
         );
       };
       multi.events.add("activeroutechange", handler);
@@ -285,7 +290,7 @@ export function MapContainer({
     return () => {
       cleanups.forEach((fn) => fn());
     };
-  }, [calculatedRoutes, getRouteColorIndex, routesRef, store]);
+  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, routesRef, store]);
 
   // Эффект для открытия balloon по запросу из Redux
   useEffect(() => {
@@ -483,28 +488,26 @@ export function MapContainer({
 
 
   useEffect(() => {
-    if (!yandexMapRef.current || !startingPoint) return;
+    if (!yandexMapRef.current) return;
 
-    // Очищаем все объекты на карте
-    yandexMapRef.current.geoObjects.removeAll();
-    if (routesRef.current) {
-      routesRef.current.splice(0, routesRef.current.length);
+    if (!startingPoint) {
+      clearCalculatedRoutes();
+      selectedRouteOverlaysRef.current.forEach((overlay) => {
+        yandexMapRef.current?.geoObjects.remove(overlay);
+      });
+      selectedRouteOverlaysRef.current = [];
+      return;
     }
-    selectedRouteOverlaysRef.current = [];
-    markersRef.current = [];
 
-    // Создаем маркеры
-    if (!window.ymaps) return;
-    const markers = createAllMarkers(startingPoint, validDestinations, window.ymaps);
-    markers.forEach(marker => {
-      yandexMapRef.current?.geoObjects.add(marker);
-    });
-    markersRef.current = markers;
+    if (validDestinations.length === 0) {
+      selectedRouteOverlaysRef.current.forEach((overlay) => {
+        yandexMapRef.current?.geoObjects.remove(overlay);
+      });
+      selectedRouteOverlaysRef.current = [];
+    }
 
     // Запускаем расчёт маршрутов, если есть валидные адреса
-    if (validDestinations.length > 0) {
-      calculateRoutes(startingPoint, validDestinations, transportMode);
-    }
+    calculateRoutes(startingPoint, validDestinations, transportMode);
 
     // Центрируем карту только при смене стартовой точки, чтобы пересчет маршрутов не дергал камеру.
     const startKey = startingPoint.coordinates.join(",");
@@ -514,14 +517,17 @@ export function MapContainer({
       });
       lastCenteredStartRef.current = startKey;
     }
-  }, [startingPoint, validDestinationsKey, transportMode, calculateRoutes]);
+  }, [startingPoint, validDestinationsKey, transportMode, calculateRoutes, clearCalculatedRoutes]);
 
   useEffect(() => {
-    if (!yandexMapRef.current || !window.ymaps || !startingPoint) return;
+    if (!yandexMapRef.current || !window.ymaps) return;
 
     markersRef.current.forEach((marker) => {
       yandexMapRef.current?.geoObjects.remove(marker);
     });
+    markersRef.current = [];
+
+    if (!startingPoint) return;
 
     const markers = createAllMarkers(startingPoint, validDestinations, window.ymaps, {
       destinationStyles: destinationMarkerStyles,

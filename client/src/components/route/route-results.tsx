@@ -8,6 +8,7 @@ import {
   setSelectedAlternative,
 } from "@/store/route-slice";
 import { getRouteDisplayItems } from "@/lib/route/route-display-order";
+import { formatDistance, formatDuration } from "@/lib/route";
 import { RouteCard } from "./route-card";
 import styles from "./route-results.module.css";
 
@@ -16,9 +17,29 @@ export function RouteResults() {
   const dispatch = useDispatch();
 
   const sortedRoutes = useMemo(
-    () => getRouteDisplayItems(routes, routeSortMode),
-    [routes, routeSortMode]
+    () => getRouteDisplayItems(routes, routeSortMode, transportMode),
+    [routes, routeSortMode, transportMode]
   );
+
+  const comparisonSummary = useMemo(() => {
+    if (routes.length === 0 || sortedRoutes.length === 0) return null;
+
+    const fastest = sortedRoutes.reduce((best, item) =>
+      item.route.duration < best.route.duration ? item : best
+    );
+    const shortest = sortedRoutes.reduce((best, item) =>
+      item.route.distance < best.route.distance ? item : best
+    );
+    const recommended = sortedRoutes[0];
+
+    return {
+      recommended: recommended.originalIndex + 1,
+      fastest: fastest.originalIndex + 1,
+      fastestValue: formatDuration(fastest.route.duration),
+      shortest: shortest.originalIndex + 1,
+      shortestValue: formatDistance(shortest.route.distance),
+    };
+  }, [routes.length, sortedRoutes]);
 
   const loadingCardCount = useMemo(() => {
     const validDestinations = destinations.filter((destination) => destination.address?.trim()).length;
@@ -119,6 +140,23 @@ export function RouteResults() {
         )}
       </div>
 
+      {comparisonSummary && (
+        <div className={styles["route-results__insights"]}>
+          <div className={styles["route-results__insight"]}>
+            <span className={styles["route-results__insight-label"]}>Рекомендован</span>
+            <strong>#{comparisonSummary.recommended}</strong>
+          </div>
+          <div className={styles["route-results__insight"]}>
+            <span className={styles["route-results__insight-label"]}>Быстрее</span>
+            <strong>#{comparisonSummary.fastest} · {comparisonSummary.fastestValue}</strong>
+          </div>
+          <div className={styles["route-results__insight"]}>
+            <span className={styles["route-results__insight-label"]}>Короче</span>
+            <strong>#{comparisonSummary.shortest} · {comparisonSummary.shortestValue}</strong>
+          </div>
+        </div>
+      )}
+
       {isCalculating && (
         <div className={styles["route-results__soft-loader"]} aria-live="polite">
           <span className={styles["route-results__soft-loader-spinner"]} />
@@ -127,7 +165,7 @@ export function RouteResults() {
       )}
 
       <LayoutGroup>
-        {sortedRoutes.map(({ route, originalIndex, colorIndex }) => (
+        {sortedRoutes.map(({ route, originalIndex, colorIndex, isRecommended }) => (
           <motion.div
             key={route.id}
             layout
@@ -136,8 +174,9 @@ export function RouteResults() {
           >
             <RouteCard
               route={route}
+              routes={routes}
               index={colorIndex}
-              isRecommended={colorIndex === 0}
+              isRecommended={isRecommended}
               transportMode={transportMode}
               onClick={() => dispatch(requestOpenRouteBalloonByIndex(originalIndex))}
               onSelectAlternative={(alternativeIndex) =>

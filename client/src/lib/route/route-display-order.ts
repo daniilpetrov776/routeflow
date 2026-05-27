@@ -1,26 +1,26 @@
-import type { RouteOption, RouteSortMode } from "@/store/route-slice";
+import type { RouteOption, RouteSortMode, TransportMode } from "@/store/route-slice";
+import { getRecommendedRouteIndex as getRecommendedRouteIndexByScore } from "./route-comparison";
 
 export interface RouteDisplayItem {
   route: RouteOption;
   originalIndex: number;
   colorIndex: number;
+  isRecommended: boolean;
 }
 
-export function getRecommendedRouteIndex(routes: RouteOption[]): number {
-  if (routes.length === 0) return -1;
-
-  return routes.reduce(
-    (bestIdx, route, idx) =>
-      route.duration < routes[bestIdx].duration ? idx : bestIdx,
-    0
-  );
+export function getRecommendedRouteIndex(
+  routes: RouteOption[],
+  transportMode: TransportMode = "walking"
+): number {
+  return getRecommendedRouteIndexByScore(routes, transportMode);
 }
 
 export function getRouteDisplayItems(
   routes: RouteOption[],
-  sortMode: RouteSortMode
+  sortMode: RouteSortMode,
+  transportMode: TransportMode = "walking"
 ): RouteDisplayItem[] {
-  const recommendedIndex = getRecommendedRouteIndex(routes);
+  const recommendedIndex = getRecommendedRouteIndex(routes, transportMode);
 
   return routes
     .map((route, originalIndex) => ({ route, originalIndex }))
@@ -39,7 +39,11 @@ export function getRouteDisplayItems(
 
       return primary || a.route.duration - b.route.duration;
     })
-    .map((item, colorIndex) => ({ ...item, colorIndex }));
+    .map((item) => ({
+      ...item,
+      colorIndex: item.originalIndex,
+      isRecommended: item.originalIndex === recommendedIndex,
+    }));
 }
 
 function getTrafficRank(route: RouteOption): number {

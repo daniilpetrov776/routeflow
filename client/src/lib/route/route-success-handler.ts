@@ -45,7 +45,8 @@ export const createRouteSuccessHandler = (
   routesRef: React.RefObject<YandexMultiRoute[]>,
   yandexMapRef: React.RefObject<YandexMap | null>,
   dispatch: any,
-  store?: Store<RootState>
+  store?: Store<RootState>,
+  onRouteResolved?: (routeOption: RouteOption) => void
 ) => {
   return () => {
     const yandexRoutes = toYandexRoutesArray(route.model.getRoutes());
@@ -90,6 +91,7 @@ export const createRouteSuccessHandler = (
     };
 
     routeResults[routeIndex] = opt;
+    onRouteResolved?.(opt);
     completedRef.current++;
 
     if (store) {
@@ -113,21 +115,25 @@ export const createRouteSuccessHandler = (
     }
 
     if (completedRef.current === totalDestinations) {
-      dispatch(setRoutes(routeResults as RouteOption[]));
+      const completedRoutes = routeResults.filter((r): r is RouteOption => r !== null);
+      dispatch(setRoutes(completedRoutes));
       dispatch(setCalculating(false));
 
       const displayItems = getRouteDisplayItems(
-        routeResults as RouteOption[],
-        store?.getState().route.routeSortMode ?? "time"
+        completedRoutes,
+        store?.getState().route.routeSortMode ?? "time",
+        store?.getState().route.transportMode ?? "walking"
       );
       const colorIndexByRouteIndex = new Map(
         displayItems.map((item) => [item.originalIndex, item.colorIndex])
       );
+      const recommendedRouteIndex =
+        displayItems.find((item) => item.isRecommended)?.originalIndex ?? -1;
 
       routesRef.current?.forEach((multi, idx) => {
         const colorIndex = colorIndexByRouteIndex.get(idx) ?? idx;
         const routeColor = getRouteColor(colorIndex);
-        const isRecommended = colorIndex === 0;
+        const isRecommended = idx === recommendedRouteIndex;
 
         multi.options.set({
           wayPointVisible: false,
