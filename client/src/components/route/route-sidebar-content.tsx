@@ -1,4 +1,5 @@
 import { useSelector } from "react-redux";
+import { LayoutGroup, motion } from "framer-motion";
 import { RootState } from "@/store";
 import { AddressInput } from "../address/address-input";
 import { RouteResults } from "./route-results";
@@ -37,34 +38,46 @@ export function RouteSidebarContent({
         onToggle={onToggle}
       />
 
-      {/* Address Inputs */}
-      <div className={styles["route-sidebar__inputs"]}>
-        <AddressInput
-          label="Начальная точка"
-          value={startingPoint?.address || ''}
-          placeholder="Введите начальный адрес..."
-          type="start"
-        />
+      <LayoutGroup id="route-sidebar-layout">
+        {/* Address Inputs */}
+        <div className={styles["route-sidebar__inputs"]}>
+          <motion.div layout="position" transition={{ duration: 0.24, ease: "easeOut" }}>
+            <AddressInput
+              label="Начальная точка"
+              value={startingPoint?.address || ''}
+              placeholder="Введите начальный адрес..."
+              type="start"
+            />
+          </motion.div>
 
-        <DestinationsSection destinations={destinations} error={error} />
+          <DestinationsSection destinations={destinations} error={error} />
 
-        <div
-          className={styles["route-sidebar__movement"]}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={styles["route-sidebar__section-label"]}>
-            Способ передвижения
-          </div>
-          <TransportModeSelector />
+          <motion.div
+            layout="position"
+            transition={{ duration: 0.24, ease: "easeOut" }}
+            className={styles["route-sidebar__movement"]}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles["route-sidebar__section-label"]}>
+              Способ передвижения
+            </div>
+            <TransportModeSelector />
+          </motion.div>
         </div>
-      </div>
 
-      {/* Route Results */}
-      <div className={styles["route-sidebar__results"]}>
-        <RouteResults />
-      </div>
+        {/* Route Results */}
+        <motion.div
+          layout="position"
+          transition={{ duration: 0.24, ease: "easeOut" }}
+          className={styles["route-sidebar__results"]}
+        >
+          <RouteResults />
+        </motion.div>
 
-      <RouteSummary routes={routes} />
+        <motion.div layout="position" transition={{ duration: 0.24, ease: "easeOut" }}>
+          <RouteSummary routes={routes} />
+        </motion.div>
+      </LayoutGroup>
     </>
   );
 }

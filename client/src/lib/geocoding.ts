@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/queryClient";
+import { formatAddressDisplay } from "@/lib/address-format";
 
 export type GeocodedAddress = {
   address: string;
@@ -44,7 +45,7 @@ export const geocodeAddress = async (query: string): Promise<GeocodedAddress | n
       return null;
     }
     return {
-      address: geoObject?.metaDataProperty?.GeocoderMetaData?.text?.trim() || query,
+      address: formatAddressDisplay(geoObject?.metaDataProperty?.GeocoderMetaData?.text?.trim() || query),
       coordinates,
     };
   } catch (error) {

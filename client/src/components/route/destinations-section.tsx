@@ -1,5 +1,6 @@
 import { useDispatch } from "react-redux";
 import { useEffect, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { addDestination } from "@/store/route-slice";
 import { Button } from "@/components/ui/button";
 import { AddressInput } from "../address/address-input";
@@ -41,7 +42,15 @@ export function DestinationsSection({
       if (lastInput && !destinations[lastIndex]?.address) {
         // Небольшая задержка для гарантии, что DOM обновился
         setTimeout(() => {
-          lastInput.focus();
+          const scrollContainer = lastInput.closest('[class*="route-sidebar"]') as HTMLElement | null;
+          const scrollTop = scrollContainer?.scrollTop;
+          lastInput.focus({ preventScroll: true });
+          if (scrollContainer && scrollTop !== undefined) {
+            scrollContainer.scrollTop = scrollTop;
+            requestAnimationFrame(() => {
+              scrollContainer.scrollTop = scrollTop;
+            });
+          }
         }, 0);
       }
     }
@@ -65,30 +74,39 @@ export function DestinationsSection({
         </label>
       </div>
 
-      {destinations.map((destination, index) => (
-        <div
-          key={index}
-          className={styles["route-sidebar__destinations-item"]}
-        >
-          <AddressInput
-            ref={(ref) => setInputRef(index, ref)}
-            value={destination.address}
-            placeholder="Введите адрес назначения..."
-            type="destination"
-            index={index}
-          />
-        </div>
-      ))}
+      <AnimatePresence initial={false}>
+        {destinations.map((destination, index) => (
+          <motion.div
+            key={index}
+            layout="position"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className={styles["route-sidebar__destinations-item"]}
+          >
+            <AddressInput
+              ref={(ref) => setInputRef(index, ref)}
+              value={destination.address}
+              placeholder="Введите адрес назначения..."
+              type="destination"
+              index={index}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleAddDestination}
-        className={styles["route-sidebar__destinations-add-button"]}
-      >
-        <Plus className={styles["route-sidebar__destinations-add-icon"]} />
-        Добавить
-      </Button>
+      <motion.div layout="position" transition={{ duration: 0.24, ease: "easeOut" }}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAddDestination}
+          className={styles["route-sidebar__destinations-add-button"]}
+        >
+          <Plus className={styles["route-sidebar__destinations-add-icon"]} />
+          Добавить
+        </Button>
+      </motion.div>
 
       {error && (
         <div className={styles["route-sidebar__error"]}>{error}</div>

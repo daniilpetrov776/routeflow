@@ -13,6 +13,18 @@
   position: relative; /* Для корректной работы Yandex Maps */
 }
 
+.map-container__map :global([class*="ground-pane"]) {
+  transition: filter 240ms ease;
+}
+
+:global(.dark) .map-container__map {
+  background-color: hsl(var(--background));
+}
+
+:global(.dark) .map-container__map :global([class*="ground-pane"]) {
+  filter: invert(0.92) hue-rotate(180deg) saturate(0.75) brightness(0.82) contrast(0.92);
+}
+
 .map-container__loading {
   @apply absolute inset-0 bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center;
 }

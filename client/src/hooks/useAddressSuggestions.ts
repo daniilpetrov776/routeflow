@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
+import { formatAddressDisplay } from "@/lib/address-format";
 import { sanitizeText } from "@/lib/sanitize";
 
 export interface Suggestion {
@@ -49,8 +50,9 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
       const items: ApiSuggestion[] = (data.suggestions || []) as ApiSuggestion[];
       const mapped: Suggestion[] = items.map(item => {
         const [lon, lat] = item.coordinates || [0, 0];
+        const title = sanitizeText(item.fullAddress || item.name || '');
         return {
-          title: sanitizeText(item.fullAddress || item.name || ''),
+          title: formatAddressDisplay(title),
           subtitle: sanitizeText(item.description || ''),
           coordinates: [lat, lon] as [number, number]
         };

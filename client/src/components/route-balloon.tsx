@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
+import { formatDistance, formatDuration } from "@/lib/route";
 import styles from "./route-balloon.module.css";
 
 export interface RouteBalloonData {
@@ -20,28 +21,6 @@ interface RouteBalloonProps {
   position: { x: number; y: number } | null;
   onClose: () => void;
 }
-
-/**
- * Форматирует длительность в секундах в читаемый формат (русский)
- */
-const formatDuration = (seconds: number): string => {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) {
-    return `${hours} ч ${minutes} мин`;
-  }
-  return `${minutes} мин`;
-};
-
-/**
- * Форматирует расстояние в метрах в читаемый формат (русский)
- */
-const formatDistance = (meters: number): string => {
-  if (meters >= 1000) {
-    return `${(meters / 1000).toFixed(1)} км`;
-  }
-  return `${meters} м`;
-};
 
 export function RouteBalloon({ data, position, onClose }: RouteBalloonProps) {
   const balloonRef = useRef<HTMLDivElement>(null);

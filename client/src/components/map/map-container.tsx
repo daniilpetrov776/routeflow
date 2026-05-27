@@ -40,6 +40,9 @@ interface MapContainerProps {
   routesRef: React.MutableRefObject<YandexMultiRoute[]>;
 }
 
+const getDestinationKey = (destination: AddressPoint): string =>
+  `${destination.address.trim()}@${destination.coordinates[0].toFixed(6)},${destination.coordinates[1].toFixed(6)}`;
+
 export function MapContainer({
   isLoaded,
   startingPoint,
@@ -74,6 +77,16 @@ export function MapContainer({
     routesRef,
   });
 
+  const validDestinations = useMemo(
+    () => destinations.filter((destination) => destination.address?.trim()),
+    [destinations]
+  );
+
+  const validDestinationsKey = useMemo(
+    () => validDestinations.map(getDestinationKey).join("|"),
+    [validDestinations]
+  );
+
   const routeDisplayItems = useMemo(
     () => getRouteDisplayItems(calculatedRoutes, routeSortMode),
     [calculatedRoutes, routeSortMode]
@@ -91,7 +104,7 @@ export function MapContainer({
   );
 
   const destinationMarkerStyles = useMemo(() => {
-    return destinations.map((destination, destinationIndex) => {
+    return validDestinations.map((destination, destinationIndex) => {
       const routeDisplayItem = routeDisplayItems.find(({ route }) => {
         const routeDest = route.destination;
         return (
@@ -107,7 +120,7 @@ export function MapContainer({
         color: getRouteColor(colorIndex),
       };
     });
-  }, [destinations, routeDisplayItems]);
+  }, [validDestinationsKey, routeDisplayItems]);
 
   // Эффект для обновления стилей уже отрисованных маршрутов и порядка отображения
   useEffect(() => {
@@ -482,8 +495,7 @@ export function MapContainer({
 
     // Создаем маркеры
     if (!window.ymaps) return;
-    const validDestinations = destinations.filter(d => d.address?.trim());
-    const markers = createAllMarkers(startingPoint, destinations, window.ymaps);
+    const markers = createAllMarkers(startingPoint, validDestinations, window.ymaps);
     markers.forEach(marker => {
       yandexMapRef.current?.geoObjects.add(marker);
     });
@@ -502,7 +514,7 @@ export function MapContainer({
       });
       lastCenteredStartRef.current = startKey;
     }
-  }, [startingPoint, destinations, transportMode, calculateRoutes]);
+  }, [startingPoint, validDestinationsKey, transportMode, calculateRoutes]);
 
   useEffect(() => {
     if (!yandexMapRef.current || !window.ymaps || !startingPoint) return;
@@ -511,14 +523,14 @@ export function MapContainer({
       yandexMapRef.current?.geoObjects.remove(marker);
     });
 
-    const markers = createAllMarkers(startingPoint, destinations, window.ymaps, {
+    const markers = createAllMarkers(startingPoint, validDestinations, window.ymaps, {
       destinationStyles: destinationMarkerStyles,
     });
     markers.forEach((marker) => {
       yandexMapRef.current?.geoObjects.add(marker);
     });
     markersRef.current = markers;
-  }, [startingPoint, destinations, destinationMarkerStyles, yandexMapRef]);
+  }, [startingPoint, validDestinationsKey, destinationMarkerStyles, yandexMapRef]);
 
   // Обработчики контролов карты (мемоизированы для предотвращения лишних ререндеров)
   const handleZoomIn = useCallback(() => {
