@@ -114,15 +114,23 @@
 }
 
 .route-sidebar__header {
-  @apply p-4 border-b border-border;
+  @apply p-4;
 }
 
 .route-sidebar__header-top {
-  @apply flex items-center justify-between mb-4;
+  @apply flex items-center justify-between;
 }
 
 .route-sidebar__transport-selector {
-  /* Базовые стили для селектора транспорта */
+  @apply space-y-2;
+}
+
+.route-sidebar__movement {
+  @apply space-y-2;
+}
+
+.route-sidebar__section-label {
+  @apply text-sm font-medium text-muted-foreground;
 }
 
 .route-sidebar__persist-section {
@@ -138,7 +146,7 @@
 }
 
 .route-sidebar__theme-button {
-  @apply h-9 w-9;
+  @apply h-9 w-9 rounded-md border border-border bg-background text-foreground shadow-sm hover:bg-accent;
 }
 
 .route-sidebar__theme-icon {
@@ -183,7 +191,7 @@
 }
 
 .route-sidebar__inputs {
-  @apply p-4 space-y-4;
+  @apply border-t border-border p-4 space-y-4;
 }
 
 .route-sidebar__destinations {
@@ -199,12 +207,13 @@
 }
 
 .route-sidebar__destinations-add-button {
-  @apply text-primary;
+  @apply mt-1 h-9 w-full rounded-md border border-border bg-background px-3 text-foreground shadow-sm;
 }
 
 .route-sidebar__destinations-add-button:hover {
-  @apply text-primary;
-  opacity: 0.9;
+  @apply bg-accent text-foreground;
+  border-color: hsl(var(--primary) / 0.4);
+  opacity: 1;
 }
 
 .route-sidebar__destinations-add-icon {

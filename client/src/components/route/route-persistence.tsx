@@ -9,7 +9,7 @@ import {
   AddressPoint,
   TransportMode,
 } from "@/store/route-slice";
-import { setItem, getItem, removeItem } from "@/lib/localStorage";
+import { setItem, getItem } from "@/lib/localStorage";
 
 const CURRENT_ROUTE_STATE_KEY = "routeflow_current_route_state";
 
@@ -21,22 +21,17 @@ interface SavedRouteState {
 }
 
 /**
- * Компонент для сохранения и загрузки состояния маршрутов
- * Работает только если persistRoutes === true
+ * Компонент для тихого сохранения и загрузки введенных точек маршрута.
+ * Сами рассчитанные маршруты не сохраняются, чтобы карта пересчитала их заново.
  */
 export function RoutePersistence() {
   const dispatch = useDispatch();
   const routeState = useSelector((state: RootState) => state.route);
-  const { persistRoutes } = routeState;
   const isInitialMount = useRef(true);
   const hasLoadedState = useRef(false);
 
-  // Загрузка состояния при монтировании или при включении persistRoutes
+  // Загрузка состояния при монтировании
   useEffect(() => {
-    if (!persistRoutes) {
-      return;
-    }
-
     try {
       const savedState = getItem<SavedRouteState>(CURRENT_ROUTE_STATE_KEY);
       if (savedState) {
@@ -86,9 +81,9 @@ export function RoutePersistence() {
       console.error("Ошибка при загрузке сохраненных маршрутов:", error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [persistRoutes]); // Загружаем при изменении persistRoutes
+  }, []);
 
-  // Сохранение состояния при изменении маршрутов, если persistRoutes === true
+  // Сохранение состояния при изменении введенных точек
   useEffect(() => {
     // Пропускаем сохранение при первой загрузке, чтобы не перезаписать загруженные данные
     if (isInitialMount.current) {
@@ -97,21 +92,6 @@ export function RoutePersistence() {
       if (hasLoadedState.current) {
         return;
       }
-    }
-
-    if (!persistRoutes) {
-      // Если сохранение отключено, очищаем сохраненное состояние
-      try {
-        removeItem(CURRENT_ROUTE_STATE_KEY);
-      } catch (error) {
-        console.error("Ошибка при очистке сохраненных маршрутов:", error);
-      }
-      return;
-    }
-
-    // Сохраняем только если есть хотя бы начальная точка или пункты назначения
-    if (!routeState.startingPoint && routeState.destinations.length === 0) {
-      return;
     }
 
     try {
@@ -126,7 +106,6 @@ export function RoutePersistence() {
       console.error("Ошибка при сохранении маршрута:", error);
     }
   }, [
-    persistRoutes,
     routeState.startingPoint,
     routeState.destinations,
     routeState.transportMode,

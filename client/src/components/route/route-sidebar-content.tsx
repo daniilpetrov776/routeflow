@@ -5,6 +5,7 @@ import { RouteResults } from "./route-results";
 import { SidebarHeader } from "../sidebar-header";
 import { DestinationsSection } from "./destinations-section";
 import { RouteSummary } from "./route-summary";
+import { TransportModeSelector } from "./transport-mode-selector";
 import styles from "./route-sidebar.module.css";
 
 interface RouteSidebarContentProps {
@@ -40,13 +41,22 @@ export function RouteSidebarContent({
       <div className={styles["route-sidebar__inputs"]}>
         <AddressInput
           label="Начальная точка"
-          icon="📍"
           value={startingPoint?.address || ''}
           placeholder="Введите начальный адрес..."
           type="start"
         />
 
         <DestinationsSection destinations={destinations} error={error} />
+
+        <div
+          className={styles["route-sidebar__movement"]}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles["route-sidebar__section-label"]}>
+            Способ передвижения
+          </div>
+          <TransportModeSelector />
+        </div>
       </div>
 
       {/* Route Results */}

@@ -3,8 +3,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { setTheme } from "@/store/theme-slice";
 import { Button } from "@/components/ui/button";
-import { TransportModeSelector } from "./route/transport-mode-selector";
-import { PersistRoutesToggle } from "./route/persist-routes-toggle";
 import { Sun, Moon, Monitor } from "lucide-react";
 import styles from "./route/route-sidebar.module.css";
 
@@ -60,21 +58,6 @@ export const SidebarHeader = forwardRef<HTMLDivElement, SidebarHeaderProps>(
           </Button>
         </div>
 
-        {/* Селектор режимов транспорта - всегда видим на мобильных */}
-        <div
-          className={styles["route-sidebar__transport-selector"]}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <TransportModeSelector />
-        </div>
-
-        {/* Переключатель сохранения маршрутов */}
-        <div
-          className={styles["route-sidebar__persist-section"]}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <PersistRoutesToggle />
-        </div>
       </div>
     );
   }

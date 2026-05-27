@@ -1,16 +1,19 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Crown } from "lucide-react";
+import type { CSSProperties } from "react";
+import { getRouteColor } from "@/lib/map-constants";
 import { formatDuration, formatDistance } from "@/lib/route";
 import { sanitizeText } from "@/lib/sanitize";
-import type { RouteOption } from "@/store/route-slice";
+import type { RouteOption, TransportMode } from "@/store/route-slice";
 import styles from "./route-results.module.css";
 
 interface RouteCardProps {
   route: RouteOption;
   index: number;
-  isFastest: boolean;
+  isRecommended: boolean;
+  transportMode: TransportMode;
   onClick?: () => void;
+  onSelectAlternative?: (alternativeIndex: number) => void;
 }
 
 /**
@@ -48,29 +51,46 @@ const getTrafficLabel = (level: string): string => {
 /**
  * Обрезает адрес, если он слишком длинный
  */
-const truncateAddress = (address: string, maxLength: number = 20): string => {
+const truncateAddress = (address: string, maxLength: number = 54): string => {
   return address.length > maxLength ? `${address.substring(0, maxLength)}...` : address;
 };
 
-export function RouteCard({ route, index, isFastest, onClick }: RouteCardProps) {
+export function RouteCard({
+  route,
+  index,
+  isRecommended,
+  transportMode,
+  onClick,
+  onSelectAlternative,
+}: RouteCardProps) {
+  const routeColor = getRouteColor(index);
+  const hasAlternatives = route.alternatives.length > 1;
+  const showStairs = transportMode === "walking" || transportMode === "cycling";
+
   return (
     <Card
-      className={`${styles["route-results__card"]} ${isFastest ? styles["route-results__card--fastest"] : ''} ${onClick ? styles["route-results__card--clickable"] : ''}`}
+      className={`${styles["route-results__card"]} ${isRecommended ? styles["route-results__card--recommended"] : ''} ${onClick ? styles["route-results__card--clickable"] : ''}`}
+      style={{ "--route-color": routeColor } as CSSProperties}
       onClick={onClick}
     >
       <CardContent className={styles["route-results__card-content"]}>
         <div className={styles["route-results__card-header"]}>
           <div className={styles["route-results__card-header-left"]}>
-            {isFastest && (
-              <Badge variant="secondary" className={styles["route-results__card-badge"]}>
-                БЫСТРЕЙШИЙ
-              </Badge>
-            )}
+            <span
+              className={styles["route-results__card-position"]}
+              aria-label={`Позиция ${index + 1}`}
+            >
+              {index + 1}
+            </span>
             <span className={styles["route-results__card-title"]}>
-              Маршрут {index + 1}
+              {sanitizeText(truncateAddress(route.destination.address))}
             </span>
           </div>
-          {isFastest && <Crown className={styles["route-results__card-crown"]} />}
+          {isRecommended && (
+            <Badge variant="secondary" className={styles["route-results__card-badge"]}>
+              Рекомендуемый
+            </Badge>
+          )}
         </div>
 
         <div className={styles["route-results__card-grid"]}>
@@ -87,22 +107,49 @@ export function RouteCard({ route, index, isFastest, onClick }: RouteCardProps) 
             </div>
           </div>
           <div className={styles["route-results__card-field"]}>
-            <span className={styles["route-results__card-field-label"]}>Пробки:</span>
-            <div
-              className={`${styles["route-results__card-field-value"]} capitalize ${getTrafficColor(route.traffic_info.level)}`}
-            >
-              {getTrafficLabel(route.traffic_info.level)}
-            </div>
-          </div>
-          <div className={styles["route-results__card-field"]}>
-            <span className={styles["route-results__card-field-label"]}>Назначение:</span>
-            <div
-              className={`${styles["route-results__card-field-value"]} ${styles["route-results__card-field-value--small"]}`}
-            >
-              {sanitizeText(truncateAddress(route.destination.address))}
+            <span className={styles["route-results__card-field-label"]}>
+              {showStairs ? "Лестницы:" : "Пробки:"}
+            </span>
+            <div className={`${styles["route-results__card-field-value"]} ${showStairs ? "" : getTrafficColor(route.traffic_info.level)}`}>
+              {showStairs ? route.stairsCount ?? 0 : getTrafficLabel(route.traffic_info.level)}
             </div>
           </div>
         </div>
+
+        {hasAlternatives && (
+          <div
+            className={styles["route-results__alternatives"]}
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <div className={styles["route-results__alternatives-title"]}>
+              Альтернативные маршруты
+            </div>
+            <div className={styles["route-results__alternatives-list"]}>
+              {route.alternatives.map((alternative, alternativeIndex) => {
+                const isSelected = route.selectedAlternativeIndex === alternativeIndex;
+
+                return (
+                  <button
+                    key={alternative.id}
+                    type="button"
+                    className={`${styles["route-results__alternative"]} ${
+                      isSelected ? styles["route-results__alternative--selected"] : ""
+                    }`}
+                    onClick={() => onSelectAlternative?.(alternativeIndex)}
+                  >
+                    <span className={styles["route-results__alternative-name"]}>
+                      {alternativeIndex === 0 ? "Основной" : `Альтернатива ${alternativeIndex}`}
+                    </span>
+                    <span>{formatDuration(alternative.duration)}</span>
+                    <span>{formatDistance(alternative.distance)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

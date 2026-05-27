@@ -1,40 +1,59 @@
 /* Блок: transport-mode-selector */
 .transport-mode-selector {
-  @apply grid grid-cols-4 gap-1 bg-muted rounded-lg p-1;
+  @apply grid grid-cols-2 gap-2 rounded-md border border-border bg-muted p-2;
 }
 
 .transport-mode-selector__button {
-  @apply min-w-0 px-2;
+  @apply min-h-10 w-full min-w-0 justify-start rounded-md border border-transparent bg-transparent px-3 text-muted-foreground shadow-none;
+  position: relative;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .transport-mode-selector__button--active {
-  /* Стили для активной кнопки применяются через variant="default" */
+  @apply border-border bg-background text-foreground shadow-sm;
+  background-color: var(--background) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 8%, transparent) !important;
+  transform: none;
+}
+
+.transport-mode-selector__button--active .transport-mode-selector__icon,
+.transport-mode-selector__button--active .transport-mode-selector__label {
+  color: var(--foreground) !important;
 }
 
 .transport-mode-selector__button--inactive {
-  /* Стили для неактивной кнопки применяются через variant="ghost" */
+  @apply hover:bg-background hover:text-foreground;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.transport-mode-selector__button--inactive:hover {
+  border-color: var(--border) !important;
 }
 
 .transport-mode-selector__icon {
-  @apply h-4 w-4 mr-1;
+  @apply h-4 w-4 shrink-0;
 }
 
 .transport-mode-selector__label {
-  @apply text-xs truncate;
+  @apply min-w-0 flex-1 whitespace-normal text-left text-xs font-medium leading-tight;
 }
 
 /* Мобильные устройства (до 768px) */
 @media (max-width: 768px) {
   .transport-mode-selector {
-    @apply gap-0.5 p-0.5;
+    @apply gap-1.5 p-1.5;
   }
 
   .transport-mode-selector__button {
-    @apply px-1;
+    @apply min-h-9 px-2;
   }
 
   .transport-mode-selector__icon {
-    @apply h-3.5 w-3.5 mr-0.5;
+    @apply h-3.5 w-3.5;
   }
 
   .transport-mode-selector__label {

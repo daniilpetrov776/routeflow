@@ -6,6 +6,10 @@ import { showRouteError } from "@/lib/error-toast";
 import type { AddressPoint, TransportMode } from "@/store/route-slice";
 import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 import {
+  getRouteColor,
+  ROUTE_STYLES,
+} from "@/lib/map-constants";
+import {
   addRouteClickHandler,
   filterValidDestinations,
   validateStartingPoint,
@@ -16,6 +20,7 @@ import {
   createRouteSuccessHandler,
   createRouteErrorHandler,
 } from "@/lib/route";
+import { applyRouteLineAppearance } from "@/lib/route/route-appearance";
 import type { RouteOption } from "@/store/route-slice";
 
 interface UseRouteCalculationOptions {
@@ -110,13 +115,17 @@ export function useRouteCalculation({
           startingPoint,
           destination,
           transportMode,
-          i === 0
+          i
         );
 
         // Добавляем обработчик клика
         if (yandexMapRef.current) {
           addRouteClickHandler(route, i, destination, yandexMapRef.current, dispatch);
         }
+
+        route.events.add("update", () => {
+          applyRouteLineAppearance(route, getRouteColor(i), ROUTE_STYLES.NORMAL_STROKE_WIDTH);
+        });
 
         // Добавляем маршрут на карту и в ref
         yandexMapRef.current.geoObjects.add(route);

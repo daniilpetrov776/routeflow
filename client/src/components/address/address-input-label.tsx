@@ -13,7 +13,11 @@ export function AddressInputLabel({ label, icon }: AddressInputLabelProps) {
 
   return (
     <label className={styles["address-input__label"]}>
-      {icon && <span className={styles["address-input__label-icon"]}>{icon}</span>}
+      {icon === "start" ? (
+        <span className={styles["address-input__start-icon"]} aria-hidden="true" />
+      ) : (
+        icon && <span className={styles["address-input__label-icon"]}>{icon}</span>
+      )}
       {label}
     </label>
   );

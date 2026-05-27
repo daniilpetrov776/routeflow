@@ -1,6 +1,7 @@
 import type { AddressPoint, TransportMode } from "@/store/route-slice";
 import type { RoutingParams, YandexMultiRoute } from "@/types/yandex-maps";
 import {
+  getRouteColor,
   ROUTE_COLORS,
   ROUTE_STYLES,
 } from "@/lib/map-constants";
@@ -43,13 +44,20 @@ export const createRoutingParams = (routingMode: "auto" | "pedestrian" | "bicycl
 /**
  * Создает опции для MultiRoute
  */
-export const createMultiRouteOptions = (isFirstRoute: boolean) => {
+export const createMultiRouteOptions = (routeIndex: number) => {
+  const routeColor = getRouteColor(routeIndex);
+
   return {
-    wayPointStartIconColor: ROUTE_COLORS.FASTEST,
+    wayPointVisible: false,
+    wayPointStartIconColor: routeColor,
     wayPointFinishIconColor: ROUTE_COLORS.FINISH,
-    routeActiveStrokeColor: isFirstRoute ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
-    routeActiveStrokeWidth: isFirstRoute ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
-    opacity: isFirstRoute ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
+    routeActiveStrokeColor: routeColor,
+    routeStrokeColor: routeColor,
+    routeStrokeWidth: ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+    routeStrokeOpacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
+    routeActiveStrokeWidth: ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+    routeActiveStrokeOpacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
+    opacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
     // Отключаем стандартный balloon
     balloonContentLayout: '',
     balloonContentBodyLayout: '',
@@ -66,7 +74,7 @@ export const createMultiRoute = (
   startingPoint: AddressPoint,
   destination: AddressPoint,
   transportMode: TransportMode,
-  isFirstRoute: boolean
+  routeIndex: number
 ): YandexMultiRoute => {
   if (!window.ymaps) {
     throw new Error("Yandex Maps API не загружен");
@@ -74,7 +82,7 @@ export const createMultiRoute = (
 
   const routingMode = getYandexRoutingMode(transportMode);
   const routeParams = createRoutingParams(routingMode);
-  const routeOptions = createMultiRouteOptions(isFirstRoute);
+  const routeOptions = createMultiRouteOptions(routeIndex);
 
   return new window.ymaps.multiRouter.MultiRoute(
     {

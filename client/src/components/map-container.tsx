@@ -13,9 +13,10 @@ import {
   DEFAULT_MAP_ZOOM,
   STARTING_POINT_ZOOM,
   MAP_ANIMATION_DURATION,
-  ROUTE_COLORS,
   ROUTE_STYLES,
+  getRouteColor,
 } from "@/lib/map-constants";
+import { applyRouteLineAppearance } from "@/lib/route/route-appearance";
 import type { AddressPoint } from "@/store/route-slice";
 import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 import styles from "./map-container.module.css";
@@ -63,10 +64,19 @@ export function MapContainer({
     routesRef.current.forEach((multiRouteObj, idx) => {
       const isFastest = idx === fastestIndex;
       multiRouteObj.options.set({
-        routeActiveStrokeColor: isFastest ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
+        wayPointVisible: false,
+        routeActiveStrokeColor: getRouteColor(idx),
+        routeStrokeColor: getRouteColor(idx),
+        routeStrokeWidth: ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+        routeStrokeOpacity: 1,
         routeActiveStrokeWidth: isFastest ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
         opacity: isFastest ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
       });
+      applyRouteLineAppearance(
+        multiRouteObj,
+        getRouteColor(idx),
+        isFastest ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH
+      );
     });
   }, [calculatedRoutes, fastestIndex]);
 
@@ -104,13 +114,13 @@ export function MapContainer({
 
     // Создаем маркеры
     if (!window.ymaps) return;
+    const validDestinations = destinations.filter(d => d.address?.trim());
     const markers = createAllMarkers(startingPoint, destinations, window.ymaps);
     markers.forEach(marker => {
       yandexMapRef.current?.geoObjects.add(marker);
     });
 
     // Запускаем расчёт маршрутов, если есть валидные адреса
-    const validDestinations = destinations.filter(d => d.address?.trim());
     if (validDestinations.length > 0) {
       calculateRoutes(startingPoint, validDestinations, transportMode);
     }

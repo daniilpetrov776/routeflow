@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { getItemWithDefault, setItem } from '@/lib/localStorage';
 
 export type TransportMode = 'walking' | 'cycling' | 'transit' | 'driving';
+export type RouteSortMode = 'time' | 'distance' | 'traffic' | 'transfers';
 
 const PERSIST_ROUTES_KEY = 'routeflow_persist_routes';
 
@@ -17,6 +18,8 @@ export interface RouteAlternative {
   traffic_info: {
     level: 'light' | 'moderate' | 'heavy';
   };
+  stairsCount?: number;
+  transferCount?: number;
   geometry?: {
     coordinates: [number, number][];
   };
@@ -31,6 +34,8 @@ export interface RouteOption {
   traffic_info: {
     level: 'light' | 'moderate' | 'heavy';
   };
+  stairsCount?: number;
+  transferCount?: number;
   geometry?: {
     coordinates: [number, number][];
   };
@@ -58,6 +63,8 @@ export function ensureRouteOption(option: RouteOptionLike): RouteOption {
     duration: option.duration,
     distance: option.distance,
     traffic_info: { ...option.traffic_info },
+    stairsCount: option.stairsCount ?? 0,
+    transferCount: option.transferCount ?? 0,
     geometry: option.geometry ? { coordinates: [...option.geometry.coordinates] } : undefined,
   };
   return {
@@ -85,6 +92,7 @@ export interface RouteState {
   startingPoint: AddressPoint | null;
   destinations: AddressPoint[];
   transportMode: TransportMode;
+  routeSortMode: RouteSortMode;
   routes: RouteOption[];
 
   isCalculating: boolean;
@@ -101,6 +109,7 @@ const initialState: RouteState = {
   startingPoint: null,
   destinations: [],
   transportMode: 'walking',
+  routeSortMode: 'time',
   routes: [],
 
   isCalculating: false,
@@ -174,8 +183,22 @@ const routeSlice = createSlice({
     },
     setTransportMode: (state, action: PayloadAction<TransportMode>) => {
       state.transportMode = action.payload;
-      state.routes = [];
+      const hasRouteInputs = Boolean(state.startingPoint) && state.destinations.some((destination) => destination.address?.trim());
+      if (!hasRouteInputs) {
+        state.routes = [];
+      } else if (state.routes.length > 0) {
+        state.isCalculating = true;
+      }
+      if (action.payload !== 'driving' && state.routeSortMode === 'traffic') {
+        state.routeSortMode = 'time';
+      }
+      if (action.payload !== 'transit' && state.routeSortMode === 'transfers') {
+        state.routeSortMode = 'time';
+      }
       state.error = null;
+    },
+    setRouteSortMode: (state, action: PayloadAction<RouteSortMode>) => {
+      state.routeSortMode = action.payload;
     },
     setRoutes: (state, action: PayloadAction<RouteOption[]>) => {
       state.routes = action.payload.map(ensureRouteOption);
@@ -197,6 +220,8 @@ const routeSlice = createSlice({
       r.duration = alt.duration;
       r.distance = alt.distance;
       r.traffic_info = { ...alt.traffic_info };
+      r.stairsCount = alt.stairsCount ?? 0;
+      r.transferCount = alt.transferCount ?? 0;
       r.geometry = alt.geometry ? { coordinates: [...alt.geometry.coordinates] } : r.geometry;
     },
 
@@ -271,6 +296,7 @@ export const {
   removeDestination,
   updateDestination,
   setTransportMode,
+  setRouteSortMode,
   setRoutes,
   setSelectedAlternative,
   setCalculating,

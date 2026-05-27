@@ -11,20 +11,53 @@
   @apply mr-2;
 }
 
+.address-input__start-icon {
+  @apply relative mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full align-[-0.2em];
+  background: hsl(var(--background));
+  border: 1.5px solid hsl(var(--foreground));
+  box-shadow: 0 0 0 2px hsl(var(--background));
+}
+
+.address-input__start-icon::before {
+  content: "";
+  @apply h-1.5 w-1.5 rounded-full;
+  background: hsl(var(--foreground));
+}
+
+.address-input__start-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 7px;
+  height: 7px;
+  background: hsl(var(--background));
+  border-right: 1.5px solid hsl(var(--foreground));
+  border-bottom: 1.5px solid hsl(var(--foreground));
+  transform: translateX(-50%) rotate(45deg);
+  z-index: -1;
+}
+
 .address-input__wrapper {
-  @apply relative flex items-center space-x-2;
+  @apply relative flex items-center;
 }
 
 .address-input__input {
   @apply flex-1;
+  padding-right: 3.75rem !important;
 }
 
 .address-input__remove-button {
-  @apply h-9 w-9 text-muted-foreground hover:text-destructive shrink-0;
+  @apply absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2 rounded-md text-muted-foreground hover:bg-accent hover:text-destructive;
+  background-color: hsl(var(--background));
+  height: 2rem !important;
+  width: 2rem !important;
+  padding: 0 !important;
+  right: 0.5rem !important;
 }
 
 .address-input__remove-icon {
-  @apply h-4 w-4;
+  @apply h-3.5 w-3.5;
 }
 
 .address-input__suggestions {

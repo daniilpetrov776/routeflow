@@ -61,17 +61,8 @@ export function DestinationsSection({
     <div className={styles["route-sidebar__destinations"]}>
       <div className={styles["route-sidebar__destinations-header"]}>
         <label className={styles["route-sidebar__destinations-label"]}>
-          🏁 Пункты назначения
+          Пункты назначения
         </label>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleAddDestination}
-          className={styles["route-sidebar__destinations-add-button"]}
-        >
-          <Plus className={styles["route-sidebar__destinations-add-icon"]} />
-          Добавить
-        </Button>
       </div>
 
       {destinations.map((destination, index) => (
@@ -88,6 +79,16 @@ export function DestinationsSection({
           />
         </div>
       ))}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleAddDestination}
+        className={styles["route-sidebar__destinations-add-button"]}
+      >
+        <Plus className={styles["route-sidebar__destinations-add-icon"]} />
+        Добавить
+      </Button>
 
       {error && (
         <div className={styles["route-sidebar__error"]}>{error}</div>

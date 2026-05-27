@@ -2,30 +2,22 @@ import { setRoutes, setCalculating, updateRouteBalloonData } from "@/store/route
 import type { RootState } from "@/store";
 import type { Store } from "@reduxjs/toolkit";
 import { showRouteError } from "@/lib/error-toast";
-import { extractRouteProperties } from "./route-properties";
+import { extractRouteCoordinates, extractRouteProperties } from "./route-properties";
 import { toYandexRoutesArray } from "./yandex-route-utils";
 import type { AddressPoint, RouteAlternative, RouteOption } from "@/store/route-slice";
 import type { YandexMultiRoute, YandexMap, YandexRoute } from "@/types/yandex-maps";
 import {
-  ROUTE_COLORS,
+  getRouteColor,
   ROUTE_STYLES,
   MAP_BOUNDS_ADJUSTMENT_DELAY,
   MAP_ZOOM_MARGIN,
 } from "@/lib/map-constants";
+import { applyRouteLineAppearance } from "./route-appearance";
+import { getRouteDisplayItems } from "./route-display-order";
 
 function yandexRouteToAlternative(route: YandexRoute, id: string): RouteAlternative {
-  const { duration, distance, isBlocked } = extractRouteProperties(route);
-  let coordinates: [number, number][] | undefined;
-  try {
-    if (typeof route.getPath === "function") {
-      const path = route.getPath();
-      if (path?.length) {
-        coordinates = path.map((c) => [c[0], c[1]] as [number, number]);
-      }
-    }
-  } catch {
-    // оставляем geometry пустой
-  }
+  const { duration, distance, isBlocked, stairsCount, transferCount } = extractRouteProperties(route);
+  const coordinates = extractRouteCoordinates(route);
   return {
     id,
     duration,
@@ -33,6 +25,8 @@ function yandexRouteToAlternative(route: YandexRoute, id: string): RouteAlternat
     traffic_info: {
       level: isBlocked ? "heavy" : "light",
     },
+    stairsCount,
+    transferCount,
     geometry: coordinates?.length ? { coordinates } : undefined,
   };
 }
@@ -73,14 +67,7 @@ export const createRouteSuccessHandler = (
       return;
     }
 
-    const active = route.getActiveRoute();
-    let selectedIdx = 0;
-    if (active) {
-      const found = yandexRoutes.findIndex((r) => r === active);
-      if (found >= 0) {
-        selectedIdx = found;
-      }
-    }
+    const selectedIdx = 0;
 
     const baseId = `route-${routeIndex}`;
     const alternatives = yandexRoutes.map((yr, i) =>
@@ -95,10 +82,9 @@ export const createRouteSuccessHandler = (
       duration: selected.duration,
       distance: selected.distance,
       traffic_info: { ...selected.traffic_info },
-      geometry:
-        selected.geometry ?? {
-          coordinates: [startingPoint.coordinates, destination.coordinates],
-        },
+      stairsCount: selected.stairsCount ?? 0,
+      transferCount: selected.transferCount ?? 0,
+      geometry: selected.geometry,
       alternatives,
       selectedAlternativeIndex: selectedIdx,
     };
@@ -130,20 +116,35 @@ export const createRouteSuccessHandler = (
       dispatch(setRoutes(routeResults as RouteOption[]));
       dispatch(setCalculating(false));
 
-      const fastestIdx = (routeResults as RouteOption[]).reduce(
-        (best, _, idx, arr) =>
-          arr[idx].duration < arr[best].duration ? idx : best,
-        0
+      const displayItems = getRouteDisplayItems(
+        routeResults as RouteOption[],
+        store?.getState().route.routeSortMode ?? "time"
+      );
+      const colorIndexByRouteIndex = new Map(
+        displayItems.map((item) => [item.originalIndex, item.colorIndex])
       );
 
       routesRef.current?.forEach((multi, idx) => {
+        const colorIndex = colorIndexByRouteIndex.get(idx) ?? idx;
+        const routeColor = getRouteColor(colorIndex);
+        const isRecommended = colorIndex === 0;
+
         multi.options.set({
-          routeActiveStrokeColor:
-            idx === fastestIdx ? ROUTE_COLORS.FASTEST : ROUTE_COLORS.NORMAL,
+          wayPointVisible: false,
+          routeActiveStrokeColor: routeColor,
+          routeStrokeColor: routeColor,
+          routeStrokeWidth: ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+          routeStrokeOpacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
           routeActiveStrokeWidth:
-            idx === fastestIdx ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
-          opacity: idx === fastestIdx ? ROUTE_STYLES.FASTEST_OPACITY : ROUTE_STYLES.NORMAL_OPACITY,
+            isRecommended ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+          routeActiveStrokeOpacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
+          opacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
         });
+        applyRouteLineAppearance(
+          multi,
+          routeColor,
+          isRecommended ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH
+        );
       });
 
       setTimeout(() => {

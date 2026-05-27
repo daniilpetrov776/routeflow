@@ -41,13 +41,25 @@ export const MAP_BOUNDS_ADJUSTMENT_DELAY = 1000;
  * Цвета для маршрутов
  */
 export const ROUTE_COLORS = {
+  /** Цвета маршрутов, которые повторяются на карте и в карточках */
+  PALETTE: [
+    "#16a34a",
+    "#2563eb",
+    "#f97316",
+    "#9333ea",
+    "#0891b2",
+    "#db2777",
+  ],
   /** Зеленый цвет для быстрого/активного маршрута */
-  FASTEST: "#28a745",
+  FASTEST: "#16a34a",
   /** Синий цвет для обычных маршрутов */
-  NORMAL: "#007bff",
+  NORMAL: "#2563eb",
   /** Красный цвет для финальной точки маршрута */
   FINISH: "#dc3545",
 } as const;
+
+export const getRouteColor = (index: number): string =>
+  ROUTE_COLORS.PALETTE[index % ROUTE_COLORS.PALETTE.length];
 
 /**
  * Настройки отображения маршрутов
@@ -57,6 +69,10 @@ export const ROUTE_STYLES = {
   FASTEST_STROKE_WIDTH: 6,
   /** Ширина линии обычного маршрута (в пикселях) */
   NORMAL_STROKE_WIDTH: 4,
+  /** Базовая прозрачность линий Yandex MultiRoute. Основной маршрут дублируется отдельной линией. */
+  BASE_STROKE_OPACITY: 0.70,
+  /** Прозрачность дублирующей линии выбранного маршрута. */
+  ACTIVE_OVERLAY_OPACITY: 0.80,
   /** Непрозрачность быстрого маршрута */
   FASTEST_OPACITY: 1.0,
   /** Непрозрачность обычного маршрута */
