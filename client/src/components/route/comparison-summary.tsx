@@ -13,8 +13,12 @@ export type RouteDisplayItem = {
 
 export function ComparisonSummary({
   items,
+  destinationCount,
+  hasStartingPoint,
 }: {
   items: RouteDisplayItem[];
+  destinationCount: number;
+  hasStartingPoint: boolean;
 }) {
   const summary = useMemo(() => {
     if (items.length === 0) return null;
@@ -35,6 +39,28 @@ export function ComparisonSummary({
       shortestValue: formatDistance(shortest.route.distance),
     };
   }, [items]);
+
+  if (destinationCount === 0) return null;
+
+  if (!hasStartingPoint) {
+    return (
+      <div className={styles.insights}>
+        <p className={styles.emptyMessage}>
+          Укажите начальную точку, чтобы увидеть варианты маршрутов к выбранным пунктам назначения.
+        </p>
+      </div>
+    );
+  }
+
+  if (destinationCount === 1) {
+    return (
+      <div className={styles.insights}>
+        <p className={styles.emptyMessage}>
+          Для сравнения нужно минимум 2 пункта назначения
+        </p>
+      </div>
+    );
+  }
 
   if (!summary) return null;
 

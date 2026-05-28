@@ -71,6 +71,7 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastSearchedQuery, setLastSearchedQuery] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
   const cacheRef = useRef<Map<string, Suggestion[]>>(new Map());
   const requestSeqRef = useRef(0);
@@ -88,6 +89,7 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
       setSuggestions([]);
       setShowSuggestions(false);
       setIsLoading(false);
+      setLastSearchedQuery(null);
       return;
     }
 
@@ -96,6 +98,7 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
       setSuggestions(cached);
       setShowSuggestions(cached.length > 0);
       setIsLoading(false);
+      setLastSearchedQuery(normalizedQuery);
       return;
     }
 
@@ -123,6 +126,7 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
       cacheRef.current.set(cacheKey, mapped);
       setSuggestions(mapped);
       setShowSuggestions(mapped.length > 0);
+      setLastSearchedQuery(normalizedQuery);
     } catch (error) {
       if (requestSeq !== requestSeqRef.current) return;
       console.error("Suggestions fetch failed:", error);
@@ -149,6 +153,7 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
     setSuggestions([]);
     setShowSuggestions(false);
     setIsLoading(false);
+    setLastSearchedQuery(null);
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
@@ -162,5 +167,6 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
     fetchSuggestions: fetchSuggestionsDebounced,
     setShowSuggestions,
     clearSuggestions,
+    lastSearchedQuery,
   };
 }

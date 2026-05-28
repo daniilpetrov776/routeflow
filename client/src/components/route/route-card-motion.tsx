@@ -10,9 +10,16 @@ export function RouteCardMotion({
 }) {
   return (
     <motion.div
-      key={motionKey}
       layout
-      transition={{ duration: 0.24, ease: "easeOut" }}
+      layoutId={motionKey}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{
+        opacity: { duration: 0.16, ease: "easeOut" },
+        y: { duration: 0.2, ease: "easeOut" },
+        layout: { type: "spring", stiffness: 420, damping: 36 },
+      }}
       className={styles.cardMotion}
     >
       {children}

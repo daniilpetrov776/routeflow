@@ -72,17 +72,28 @@ export function RouteCard({
 }: RouteCardProps) {
   const routeColor = getRouteColor(index);
   const hasAlternatives = route.alternatives.length > 1;
+  const hasComparison = routes.length > 1;
+  const showRecommended = hasComparison && isRecommended;
   const showStairs = transportMode === "walking" || transportMode === "cycling";
+  const showTransfers = transportMode === "transit";
   const comparison = getRouteComparison(route, routes, transportMode);
 
   return (
     <Card
-      className={`${styles["route-results__card"]} ${isRecommended ? styles["route-results__card--recommended"] : ''} ${onClick ? styles["route-results__card--clickable"] : ''}`}
+      className={`${styles["route-results__card"]} ${showRecommended ? styles["route-results__card--recommended"] : ''} ${onClick ? styles["route-results__card--clickable"] : ''}`}
       style={{ "--route-color": routeColor } as CSSProperties}
       onClick={onClick}
     >
+      {showRecommended && (
+        <Badge variant="secondary" className={styles["route-results__card-badge"]}>
+          Рекомендуемый
+        </Badge>
+      )}
+
       <CardContent className={styles["route-results__card-content"]}>
-        <div className={styles["route-results__card-header"]}>
+        <div
+          className={`${styles["route-results__card-header"]} ${showRecommended ? styles["route-results__card-header--recommended"] : ""}`}
+        >
           <div className={styles["route-results__card-header-left"]}>
             <span
               className={styles["route-results__card-position"]}
@@ -95,11 +106,6 @@ export function RouteCard({
             </span>
           </div>
           <div className={styles["route-results__card-header-right"]}>
-            {isRecommended && (
-              <Badge variant="secondary" className={styles["route-results__card-badge"]}>
-                Рекомендуемый
-              </Badge>
-            )}
             {onRemove && (
               <Button
                 type="button"
@@ -132,22 +138,28 @@ export function RouteCard({
           </div>
           <div className={styles["route-results__card-field"]}>
             <span className={styles["route-results__card-field-label"]}>
-              {showStairs ? "Лестницы:" : "Пробки:"}
+              {showStairs ? "Лестницы:" : showTransfers ? "Пересадки:" : "Пробки:"}
             </span>
-            <div className={`${styles["route-results__card-field-value"]} ${showStairs ? "" : getTrafficColor(route.traffic_info.level)}`}>
-              {showStairs ? route.stairsCount ?? 0 : getTrafficLabel(route.traffic_info.level)}
+            <div className={`${styles["route-results__card-field-value"]} ${showStairs || showTransfers ? "" : getTrafficColor(route.traffic_info.level)}`}>
+              {showStairs
+                ? route.stairsCount ?? 0
+                : showTransfers
+                  ? route.transferCount ?? 0
+                  : getTrafficLabel(route.traffic_info.level)}
             </div>
           </div>
         </div>
 
-        <div className={styles["route-results__card-score-row"]}>
+        {hasComparison && (
+          <div className={styles["route-results__card-score-row"]}>
           <span className={styles["route-results__card-score"]}>
             {comparison.score}/100
           </span>
           <span className={styles["route-results__card-reason"]}>
             {isRecommended ? `Рекомендован: ${comparison.reason}` : comparison.reason}
           </span>
-        </div>
+          </div>
+        )}
 
         {hasAlternatives && (
           <div

@@ -85,6 +85,10 @@
     pointer-events: auto;
   }
 
+  .route-sidebar__section-label {
+    @apply text-base;
+  }
+
   .route-sidebar__inputs {
     @apply p-3 space-y-3;
   }
@@ -130,7 +134,7 @@
 }
 
 .route-sidebar__section-label {
-  @apply text-sm font-medium text-muted-foreground;
+  @apply whitespace-nowrap text-lg font-semibold text-foreground;
 }
 
 .route-sidebar__persist-section {
