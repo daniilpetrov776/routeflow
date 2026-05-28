@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useMemo } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
+import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination, addDestination } from "@/store/route-slice";
 import { resolveSuggestion, geocodeAddress } from "@/lib/geocoding";
 import { useAddressSuggestions, type Suggestion } from "@/hooks/useAddressSuggestions";
 import { AddressSuggestions } from "./address-suggestions";
@@ -33,9 +33,11 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
 }, ref) {
   const dispatch = useDispatch();
   const startingPoint = useSelector((state: RootState) => state.route.startingPoint);
+  const destinations = useSelector((state: RootState) => state.route.destinations);
   const [inputValue, setInputValue] = useState(value);
   const [notFoundError, setNotFoundError] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [selectedBusinessKeys, setSelectedBusinessKeys] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const skipBlurSaveRef = useRef(false);
@@ -69,6 +71,10 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
       setSelectedIndex(-1);
     }
   }, [showSuggestions]);
+
+  useEffect(() => {
+    setSelectedBusinessKeys(new Set());
+  }, [inputValue]);
 
   useEffect(() => {
     const trimmed = inputValue.trim();
@@ -115,6 +121,8 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
 
   const resolveAndApply = async (input: {
     title: string;
+    fullAddress?: string;
+    kind?: Suggestion["kind"];
     coordinates?: [number, number];
     uri?: string;
   }) => {
@@ -130,6 +138,34 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     setInputValue(resolved.address);
     return true;
   };
+
+  const isDestinationAlreadyAdded = useCallback((point: AddressPoint): boolean => {
+    return destinations.some((destination) =>
+      destination.address === point.address &&
+      Math.abs(destination.coordinates[0] - point.coordinates[0]) < 0.0001 &&
+      Math.abs(destination.coordinates[1] - point.coordinates[1]) < 0.0001
+    );
+  }, [destinations]);
+
+  const isBusinessAdded = useCallback((suggestion: Suggestion): boolean => {
+    const normalizedTitle = suggestion.title.trim().toLowerCase();
+    return destinations.some((destination) => {
+      const sameCoordinates =
+        suggestion.coordinates &&
+        Math.abs(destination.coordinates[0] - suggestion.coordinates[0]) < 0.0001 &&
+        Math.abs(destination.coordinates[1] - suggestion.coordinates[1]) < 0.0001;
+      const sameAddressText = destination.address.trim().toLowerCase() === normalizedTitle;
+      return Boolean(sameCoordinates || sameAddressText);
+    });
+  }, [destinations]);
+
+  const getBusinessKey = useCallback((suggestion: Suggestion): string => {
+    return suggestion.uri?.trim() || `${suggestion.title.trim().toLowerCase()}|${suggestion.subtitle?.trim().toLowerCase() ?? ""}`;
+  }, []);
+
+  const isBusinessSelected = useCallback((suggestion: Suggestion): boolean => {
+    return selectedBusinessKeys.has(getBusinessKey(suggestion));
+  }, [getBusinessKey, selectedBusinessKeys]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -278,6 +314,95 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     setSelectedIndex(-1);
   };
 
+  const handleToggleBusinessSelection = (suggestion: Suggestion) => {
+    if (type !== "destination" || index === undefined) {
+      return;
+    }
+
+    if (suggestion.kind !== "business") {
+      return;
+    }
+
+    if (isBusinessAdded(suggestion)) {
+      return;
+    }
+    const key = getBusinessKey(suggestion);
+    setSelectedBusinessKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const handleAddSelectedBusinesses = async () => {
+    if (type !== "destination" || index === undefined || selectedBusinessKeys.size === 0) {
+      return;
+    }
+
+    const selectedSuggestions = suggestions.filter(
+      (suggestion) => suggestion.kind === "business" && selectedBusinessKeys.has(getBusinessKey(suggestion))
+    );
+
+    if (selectedSuggestions.length === 0) {
+      return;
+    }
+
+    const resolvedCandidates = await Promise.all(
+      selectedSuggestions.map((suggestion) =>
+        resolveSuggestion({
+          title: suggestion.title,
+          fullAddress: suggestion.fullAddress,
+          kind: suggestion.kind,
+          coordinates: suggestion.coordinates,
+          uri: suggestion.uri,
+        })
+      )
+    );
+
+    const pointsToAdd: AddressPoint[] = [];
+    for (const candidate of resolvedCandidates) {
+      if (!candidate || isDestinationAlreadyAdded(candidate)) {
+        continue;
+      }
+      pointsToAdd.push(candidate);
+    }
+
+    if (pointsToAdd.length === 0) {
+      skipBlurSaveRef.current = true;
+      if (!destinations[index]?.address?.trim()) {
+        dispatch(removeDestination(index));
+      }
+      setSelectedBusinessKeys(new Set());
+      setInputValue('');
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      inputRef.current?.blur();
+      return;
+    }
+
+    skipBlurSaveRef.current = true;
+
+    const shouldRemoveCurrentDestination = !destinations[index]?.address?.trim();
+    if (shouldRemoveCurrentDestination) {
+      dispatch(removeDestination(index));
+    }
+
+    for (const point of pointsToAdd) {
+      dispatch(addDestination(point));
+    }
+
+    setSelectedBusinessKeys(new Set());
+    setInputValue('');
+    setNotFoundError(null);
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
+    inputRef.current?.blur();
+  };
+
   const handleRemove = () => {
     if (type === 'start') {
       dispatch(clearStartingPoint());
@@ -310,6 +435,12 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
           suggestions={suggestions}
           isLoading={isLoading}
           onSuggestionClick={(suggestion) => { void handleSuggestionClick(suggestion); }}
+          onToggleBusinessSelection={type === "destination" ? handleToggleBusinessSelection : undefined}
+          onAddSelectedBusinesses={type === "destination" ? () => { void handleAddSelectedBusinesses(); } : undefined}
+          selectedBusinessCount={selectedBusinessKeys.size}
+          canAddSelectedBusinesses={selectedBusinessKeys.size > 0}
+          isBusinessAdded={isBusinessAdded}
+          isBusinessSelected={isBusinessSelected}
           suggestionsRef={suggestionsRef}
           selectedIndex={selectedIndex}
         />

@@ -7,6 +7,12 @@ interface AddressSuggestionsProps {
   suggestions: Suggestion[];
   isLoading: boolean;
   onSuggestionClick: (suggestion: Suggestion) => void;
+  onToggleBusinessSelection?: (suggestion: Suggestion) => void;
+  onAddSelectedBusinesses?: () => void;
+  selectedBusinessCount?: number;
+  canAddSelectedBusinesses?: boolean;
+  isBusinessAdded?: (suggestion: Suggestion) => boolean;
+  isBusinessSelected?: (suggestion: Suggestion) => boolean;
   suggestionsRef: React.RefObject<HTMLDivElement>;
   selectedIndex?: number;
 }
@@ -23,10 +29,18 @@ export function AddressSuggestions({
   suggestions,
   isLoading,
   onSuggestionClick,
+  onToggleBusinessSelection,
+  onAddSelectedBusinesses,
+  selectedBusinessCount = 0,
+  canAddSelectedBusinesses = false,
+  isBusinessAdded,
+  isBusinessSelected,
   suggestionsRef,
   selectedIndex = -1,
 }: AddressSuggestionsProps) {
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const businessSuggestionsCount = suggestions.filter((item) => item.kind === "business").length;
+  const canSelectBusinesses = Boolean(onToggleBusinessSelection) && businessSuggestionsCount > 0;
 
   useEffect(() => {
     if (selectedIndex >= 0 && selectedItemRef.current && suggestionsRef.current) {
@@ -67,6 +81,20 @@ export function AddressSuggestions({
       ref={suggestionsRef}
       className={styles["address-input__suggestions"]}
     >
+      {canSelectBusinesses && (
+        <div className={styles["address-input__business-header"]}>
+          <div>Выберите организации, которые нужно добавить в пункты назначения.</div>
+          <button
+            type="button"
+            className={styles["address-input__add-selected-button"]}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onAddSelectedBusinesses?.()}
+            disabled={!canAddSelectedBusinesses}
+          >
+            Добавить выбранные{selectedBusinessCount > 0 ? ` (${selectedBusinessCount})` : ""}
+          </button>
+        </div>
+      )}
       {suggestions.map((suggestion, idx) => (
         <div
           key={`${suggestion.kind}-${suggestion.title}-${idx}`}
@@ -85,9 +113,29 @@ export function AddressSuggestions({
                 <div className={styles["address-input__suggestion-title"]}>
                   {sanitizeText(suggestion.title)}
                 </div>
-                <span className={styles["address-input__suggestion-kind"]}>
-                  {getSuggestionKindLabel(suggestion.kind)}
-                </span>
+                <div className={styles["address-input__suggestion-actions"]}>
+                  <span className={styles["address-input__suggestion-kind"]}>
+                    {getSuggestionKindLabel(suggestion.kind)}
+                  </span>
+                  {suggestion.kind === "business" && onToggleBusinessSelection && (
+                    <button
+                      type="button"
+                      className={styles["address-input__add-business-button"]}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onToggleBusinessSelection(suggestion);
+                      }}
+                      disabled={Boolean(isBusinessAdded?.(suggestion))}
+                    >
+                      {isBusinessAdded?.(suggestion)
+                        ? "Добавлено"
+                        : isBusinessSelected?.(suggestion)
+                          ? "Выбрано"
+                          : "Выбрать"}
+                    </button>
+                  )}
+                </div>
               </div>
               {suggestion.subtitle && (
                 <div className={styles["address-input__suggestion-subtitle"]}>

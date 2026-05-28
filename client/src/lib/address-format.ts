@@ -1,6 +1,8 @@
 const COUNTRY_PARTS = new Set([
   "россия",
   "российская федерация",
+  "россия",
+  "российская федерация",
   "russia",
   "russian federation",
 ]);
@@ -8,17 +10,39 @@ const COUNTRY_PARTS = new Set([
 const CITY_PREFIX_RE =
   /^(город|г\.|поселок|посёлок|п\.|село|с\.|деревня|д\.|санкт-петербург|москва)\b/i;
 
+const CITY_NAME_RE =
+  /^(санкт-петербург|москва|saint petersburg|st\.?\s*petersburg|moscow)$/i;
+const CITY_PREFIX_TEXT_RE =
+  /^(город|г\.|поселок|посёлок|п\.|село|с\.|деревня|д\.)\s+/i;
+
 const looksLikeCountry = (part: string): boolean =>
   COUNTRY_PARTS.has(part.trim().toLowerCase());
 
 const looksLikeCity = (part: string): boolean =>
-  CITY_PREFIX_RE.test(part.trim());
+  CITY_PREFIX_RE.test(part.trim()) ||
+  CITY_NAME_RE.test(part.trim()) ||
+  CITY_PREFIX_TEXT_RE.test(part.trim());
 
-export const formatAddressDisplay = (address: string): string => {
-  const parts = address
+const normalizeAddressParts = (address: string): string[] =>
+  address
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
+
+const normalizeComparablePart = (part: string): string =>
+  part
+    .trim()
+    .toLowerCase()
+    .replace(/[«»"']/g, "")
+    .replace(/\s+/g, " ");
+
+export const formatAddressDisplay = (address: string): string => {
+  const parts = normalizeAddressParts(address);
+
+  if (parts.length >= 2 && looksLikeCity(parts[0])) {
+    const city = parts.shift()!;
+    return [...parts, city].join(", ");
+  }
 
   if (parts.length < 3 || !looksLikeCountry(parts[0])) {
     return address.trim();
@@ -38,4 +62,25 @@ export const formatAddressDisplay = (address: string): string => {
   }
 
   return [...addressParts, ...cityParts, country].join(", ");
+};
+
+export const formatBusinessAddressDisplay = (
+  name: string,
+  address?: string
+): string => {
+  const cleanName = name.trim();
+  const cleanAddress = address?.trim();
+
+  if (!cleanAddress) {
+    return cleanName;
+  }
+
+  const formattedAddress = formatAddressDisplay(cleanAddress);
+  const addressParts = normalizeAddressParts(formattedAddress);
+  const comparableName = normalizeComparablePart(cleanName);
+  const uniqueAddressParts = addressParts.filter(
+    (part) => normalizeComparablePart(part) !== comparableName
+  );
+
+  return [cleanName, ...uniqueAddressParts].filter(Boolean).join(", ");
 };

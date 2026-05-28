@@ -338,6 +338,18 @@
   @apply text-[0.68rem] text-muted-foreground;
 }
 
+.route-results__clear-all-button {
+  @apply mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-md border-border text-sm font-semibold text-destructive hover:text-destructive;
+}
+
+.route-results__clear-all-button:hover {
+  background-color: hsl(var(--destructive) / 0.1);
+}
+
+.route-results__clear-all-icon {
+  @apply h-4 w-4;
+}
+
 /* Мобильные устройства (до 768px) */
 @media (max-width: 768px) {
   .route-results {

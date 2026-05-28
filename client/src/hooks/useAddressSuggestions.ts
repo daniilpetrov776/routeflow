@@ -8,6 +8,7 @@ export type SuggestionKind = "business" | "address";
 export interface Suggestion {
   title: string;
   subtitle: string;
+  fullAddress?: string;
   coordinates?: [number, number];
   uri?: string;
   kind: SuggestionKind;
@@ -111,15 +112,19 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
       const items: ApiSuggestion[] = (data.suggestions || []) as ApiSuggestion[];
       const mapped: Suggestion[] = items.map((item) => {
         const [lon, lat] = item.coordinates ?? [];
-        const title = sanitizeText(item.fullAddress || item.name || "");
+        const kind: SuggestionKind = item.kind === "business" ? "business" : "address";
+        const displayTitle = kind === "business"
+          ? sanitizeText(item.name || item.fullAddress || "")
+          : sanitizeText(item.fullAddress || item.name || "");
         const hasCoordinates = Number.isFinite(lon) && Number.isFinite(lat);
 
         return {
-          title: formatAddressDisplay(title),
+          title: formatAddressDisplay(displayTitle),
           subtitle: sanitizeText(item.description || ""),
+          fullAddress: item.fullAddress ? formatAddressDisplay(sanitizeText(item.fullAddress)) : undefined,
           coordinates: hasCoordinates ? ([lat, lon] as [number, number]) : undefined,
           uri: item.uri,
-          kind: item.kind === "business" ? "business" : "address",
+          kind,
         };
       });
 
