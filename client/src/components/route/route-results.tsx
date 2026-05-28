@@ -104,7 +104,7 @@ export function RouteResults({ error }: { error: string | null }) {
     return (
       <div className={styles["route-results"]}>
         <div className={styles["route-results__header"]}>
-          <h3 className={styles["route-results__title"]}>Варианты маршрутов</h3>
+          <h3 className={styles["route-results__title"]}>Пункты назначения</h3>
         </div>
         <DestinationsSection error={error} />
         <LayoutGroup>
@@ -156,12 +156,12 @@ export function RouteResults({ error }: { error: string | null }) {
   return (
     <div className={styles["route-results"]}>
       <div className={styles["route-results__header"]}>
-        <h3 className={styles["route-results__title"]}>Варианты маршрутов</h3>
+        <h3 className={styles["route-results__title"]}>Пункты назначения</h3>
       </div>
 
-      <DestinationsSection error={error} />
-
       <ComparisonSummary items={sortedRoutes as RouteDisplayItem[]} />
+
+      <DestinationsSection error={error} />
 
       {isCalculating && (
         <div className={styles["route-results__soft-loader"]} aria-live="polite">
