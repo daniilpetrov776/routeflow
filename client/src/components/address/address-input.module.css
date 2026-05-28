@@ -4,7 +4,7 @@
 }
 
 .address-input__label {
-  @apply block text-sm font-medium text-muted-foreground mb-2;
+  @apply mb-2 block whitespace-nowrap text-lg font-semibold text-foreground;
 }
 
 .address-input__label-icon {
@@ -95,7 +95,7 @@
 /* Мобильные устройства (до 768px) */
 @media (max-width: 768px) {
   .address-input__label {
-    @apply text-xs mb-1.5;
+    @apply mb-1.5 text-base;
   }
 
   .address-input__suggestions {

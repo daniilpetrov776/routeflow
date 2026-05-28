@@ -1,6 +1,6 @@
 /* Блок: route-results */
 .route-results {
-  @apply p-4 space-y-3;
+  @apply px-4 pb-4 pt-0 space-y-3;
   position: relative;
 }
 
@@ -326,7 +326,7 @@
 /* Мобильные устройства (до 768px) */
 @media (max-width: 768px) {
   .route-results {
-    @apply p-3 space-y-2;
+    @apply px-3 pb-3 pt-0 space-y-2;
   }
 
   .route-results__title {
@@ -385,7 +385,7 @@
 /* Планшеты (768px - 1024px) */
 @media (min-width: 769px) and (max-width: 1024px) {
   .route-results {
-    @apply p-3;
+    @apply px-3 pb-3 pt-0;
   }
 
   .route-results__card-content {

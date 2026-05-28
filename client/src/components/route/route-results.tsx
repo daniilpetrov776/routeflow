@@ -35,10 +35,14 @@ export function RouteResults({ error }: { error: string | null }) {
     [routes, routeSortMode, transportMode]
   );
 
+  const validDestinationCount = useMemo(
+    () => destinations.filter((destination) => destination.address?.trim()).length,
+    [destinations]
+  );
+
   const loadingCardCount = useMemo(() => {
-    const validDestinations = destinations.filter((destination) => destination.address?.trim()).length;
-    return Math.max(1, validDestinations);
-  }, [destinations]);
+    return Math.max(1, validDestinationCount);
+  }, [validDestinationCount]);
 
   useEffect(() => {
     if (routeSortMode === "traffic" && transportMode !== "driving") {
@@ -106,6 +110,10 @@ export function RouteResults({ error }: { error: string | null }) {
         <div className={styles["route-results__header"]}>
           <h3 className={styles["route-results__title"]}>Пункты назначения</h3>
         </div>
+        <ComparisonSummary
+          items={sortedRoutes as RouteDisplayItem[]}
+          destinationCount={validDestinationCount}
+        />
         <DestinationsSection error={error} />
         <LayoutGroup>
           {pendingDestinationIndexes.map((destinationIndex) => (
@@ -159,7 +167,10 @@ export function RouteResults({ error }: { error: string | null }) {
         <h3 className={styles["route-results__title"]}>Пункты назначения</h3>
       </div>
 
-      <ComparisonSummary items={sortedRoutes as RouteDisplayItem[]} />
+      <ComparisonSummary
+        items={sortedRoutes as RouteDisplayItem[]}
+        destinationCount={validDestinationCount}
+      />
 
       <DestinationsSection error={error} />
 
