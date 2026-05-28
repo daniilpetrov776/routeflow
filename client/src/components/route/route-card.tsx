@@ -75,6 +75,7 @@ export function RouteCard({
   const hasComparison = routes.length > 1;
   const showRecommended = hasComparison && isRecommended;
   const showStairs = transportMode === "walking" || transportMode === "cycling";
+  const showTransfers = transportMode === "transit";
   const comparison = getRouteComparison(route, routes, transportMode);
 
   return (
@@ -83,8 +84,16 @@ export function RouteCard({
       style={{ "--route-color": routeColor } as CSSProperties}
       onClick={onClick}
     >
+      {showRecommended && (
+        <Badge variant="secondary" className={styles["route-results__card-badge"]}>
+          Рекомендуемый
+        </Badge>
+      )}
+
       <CardContent className={styles["route-results__card-content"]}>
-        <div className={styles["route-results__card-header"]}>
+        <div
+          className={`${styles["route-results__card-header"]} ${showRecommended ? styles["route-results__card-header--recommended"] : ""}`}
+        >
           <div className={styles["route-results__card-header-left"]}>
             <span
               className={styles["route-results__card-position"]}
@@ -97,11 +106,6 @@ export function RouteCard({
             </span>
           </div>
           <div className={styles["route-results__card-header-right"]}>
-            {showRecommended && (
-              <Badge variant="secondary" className={styles["route-results__card-badge"]}>
-                Рекомендуемый
-              </Badge>
-            )}
             {onRemove && (
               <Button
                 type="button"
@@ -134,10 +138,14 @@ export function RouteCard({
           </div>
           <div className={styles["route-results__card-field"]}>
             <span className={styles["route-results__card-field-label"]}>
-              {showStairs ? "Лестницы:" : "Пробки:"}
+              {showStairs ? "Лестницы:" : showTransfers ? "Пересадки:" : "Пробки:"}
             </span>
-            <div className={`${styles["route-results__card-field-value"]} ${showStairs ? "" : getTrafficColor(route.traffic_info.level)}`}>
-              {showStairs ? route.stairsCount ?? 0 : getTrafficLabel(route.traffic_info.level)}
+            <div className={`${styles["route-results__card-field-value"]} ${showStairs || showTransfers ? "" : getTrafficColor(route.traffic_info.level)}`}>
+              {showStairs
+                ? route.stairsCount ?? 0
+                : showTransfers
+                  ? route.transferCount ?? 0
+                  : getTrafficLabel(route.traffic_info.level)}
             </div>
           </div>
         </div>

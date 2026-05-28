@@ -136,10 +136,20 @@ const getRouteSegments = (route: YandexRoute): YandexRouteSegment[] => {
 };
 
 export const extractTransferCount = (route: YandexRoute): number => {
-  return getRouteSegments(route).filter((segment) => {
+  const segments = getRouteSegments(route);
+  const explicitTransfers = segments.filter((segment) => {
     const type = segment.properties.get("type");
     return typeof type === "string" && type.toLowerCase() === "transfer";
   }).length;
+
+  if (explicitTransfers > 0) return explicitTransfers;
+
+  const transitSegments = segments.filter((segment) => {
+    const type = segment.properties.get("type");
+    return typeof type === "string" && !["pedestrian", "walk"].includes(type.toLowerCase());
+  }).length;
+
+  return Math.max(0, transitSegments - 1);
 };
 
 export const extractStairsCount = (route: YandexRoute): number => {

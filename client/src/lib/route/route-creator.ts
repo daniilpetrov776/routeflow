@@ -28,14 +28,17 @@ export const getYandexRoutingMode = (
 /**
  * Создает параметры маршрутизации
  */
-export const createRoutingParams = (routingMode: "auto" | "pedestrian" | "bicycle" | "masstransit"): RoutingParams => {
+export const createRoutingParams = (
+  routingMode: "auto" | "pedestrian" | "bicycle" | "masstransit",
+  avoidTrafficJams = routingMode === "auto"
+): RoutingParams => {
   const params: RoutingParams = {
     routingMode,
   };
   
   // avoidTrafficJams работает только для режима "auto"
   if (routingMode === "auto") {
-    params.avoidTrafficJams = true;
+    params.avoidTrafficJams = avoidTrafficJams;
   }
   
   return params;
@@ -74,14 +77,15 @@ export const createMultiRoute = (
   startingPoint: AddressPoint,
   destination: AddressPoint,
   transportMode: TransportMode,
-  routeIndex: number
+  routeIndex: number,
+  options?: { avoidTrafficJams?: boolean }
 ): YandexMultiRoute => {
   if (!window.ymaps) {
     throw new Error("Yandex Maps API не загружен");
   }
 
   const routingMode = getYandexRoutingMode(transportMode);
-  const routeParams = createRoutingParams(routingMode);
+  const routeParams = createRoutingParams(routingMode, options?.avoidTrafficJams);
   const routeOptions = createMultiRouteOptions(routeIndex);
 
   return new window.ymaps.multiRouter.MultiRoute(

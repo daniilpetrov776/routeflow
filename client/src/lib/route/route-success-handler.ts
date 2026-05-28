@@ -2,7 +2,7 @@ import { setRoutes, setCalculating, updateRouteBalloonData } from "@/store/route
 import type { RootState } from "@/store";
 import type { Store } from "@reduxjs/toolkit";
 import { showRouteError } from "@/lib/error-toast";
-import { extractRouteCoordinates, extractRouteProperties } from "./route-properties";
+import { extractDuration, extractRouteCoordinates, extractRouteProperties } from "./route-properties";
 import { toYandexRoutesArray } from "./yandex-route-utils";
 import type { AddressPoint, RouteAlternative, RouteOption } from "@/store/route-slice";
 import type { YandexMultiRoute, YandexMap, YandexRoute } from "@/types/yandex-maps";
@@ -14,8 +14,81 @@ import {
 } from "@/lib/map-constants";
 import { applyRouteLineAppearance } from "./route-appearance";
 import { getRouteDisplayItems } from "./route-display-order";
+import { createMultiRoute } from "./route-creator";
 
-function yandexRouteToAlternative(route: YandexRoute, id: string): RouteAlternative {
+type TrafficLevel = RouteAlternative["traffic_info"]["level"];
+
+const TRAFFIC_BASELINE_TIMEOUT_MS = 6000;
+
+function getTrafficLevel(
+  isBlocked: boolean,
+  duration: number,
+  baselineDuration?: number
+): TrafficLevel {
+  if (isBlocked) return "heavy";
+  if (!baselineDuration || baselineDuration <= 0) return "light";
+
+  const ratio = duration / baselineDuration;
+  if (ratio >= 1.4) return "heavy";
+  if (ratio >= 1.15) return "moderate";
+  return "light";
+}
+
+function getBaselineDurationsWithoutTraffic(
+  startingPoint: AddressPoint,
+  destination: AddressPoint,
+  routeIndex: number,
+  map: YandexMap | null
+): Promise<number[]> {
+  if (!map) return Promise.resolve([]);
+
+  return new Promise((resolve) => {
+    let baselineRoute: YandexMultiRoute | null = null;
+    let settled = false;
+
+    const finish = (durations: number[]) => {
+      if (settled) return;
+      settled = true;
+      if (baselineRoute) {
+        map.geoObjects.remove(baselineRoute);
+      }
+      resolve(durations);
+    };
+
+    try {
+      baselineRoute = createMultiRoute(
+        startingPoint,
+        destination,
+        "driving",
+        routeIndex,
+        { avoidTrafficJams: false }
+      );
+      baselineRoute.options.set({
+        opacity: 0,
+        routeStrokeOpacity: 0,
+        routeActiveStrokeOpacity: 0,
+        wayPointVisible: false,
+      });
+      map.geoObjects.add(baselineRoute);
+
+      baselineRoute.model.events.add("requestsuccess", () => {
+        const routes = toYandexRoutesArray(baselineRoute?.model.getRoutes());
+        finish(routes.map(extractDuration));
+      });
+      baselineRoute.model.events.add("requestfail", () => finish([]));
+      window.setTimeout(() => finish([]), TRAFFIC_BASELINE_TIMEOUT_MS);
+    } catch (error) {
+      console.warn("Failed to calculate baseline route without traffic:", error);
+      finish([]);
+    }
+  });
+}
+
+function yandexRouteToAlternative(
+  route: YandexRoute,
+  id: string,
+  baselineDuration?: number
+): RouteAlternative {
   const { duration, distance, isBlocked, stairsCount, transferCount } = extractRouteProperties(route);
   const coordinates = extractRouteCoordinates(route);
   return {
@@ -23,7 +96,7 @@ function yandexRouteToAlternative(route: YandexRoute, id: string): RouteAlternat
     duration,
     distance,
     traffic_info: {
-      level: isBlocked ? "heavy" : "light",
+      level: getTrafficLevel(isBlocked, duration, baselineDuration),
     },
     stairsCount,
     transferCount,
@@ -48,7 +121,7 @@ export const createRouteSuccessHandler = (
   store?: Store<RootState>,
   onRouteResolved?: (routeOption: RouteOption) => void
 ) => {
-  return () => {
+  return async () => {
     const yandexRoutes = toYandexRoutesArray(route.model.getRoutes());
     if (yandexRoutes.length === 0) {
       console.warn(`No routes available for destination #${routeIndex + 1}`);
@@ -71,8 +144,18 @@ export const createRouteSuccessHandler = (
     const selectedIdx = 0;
 
     const baseId = `route-${routeIndex}`;
+    const transportMode = store?.getState().route.transportMode ?? "walking";
+    const baselineDurations =
+      transportMode === "driving"
+        ? await getBaselineDurationsWithoutTraffic(
+            startingPoint,
+            destination,
+            routeIndex,
+            yandexMapRef.current
+          )
+        : [];
     const alternatives = yandexRoutes.map((yr, i) =>
-      yandexRouteToAlternative(yr, `${baseId}-alt-${i}`)
+      yandexRouteToAlternative(yr, `${baseId}-alt-${i}`, baselineDurations[i] ?? baselineDurations[0])
     );
     const selected =
       alternatives[selectedIdx] ?? alternatives[0];
@@ -122,7 +205,7 @@ export const createRouteSuccessHandler = (
       const displayItems = getRouteDisplayItems(
         completedRoutes,
         store?.getState().route.routeSortMode ?? "time",
-        store?.getState().route.transportMode ?? "walking"
+        transportMode
       );
       const colorIndexByRouteIndex = new Map(
         displayItems.map((item) => [item.originalIndex, item.colorIndex])
