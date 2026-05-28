@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
-import { useDispatch } from "react-redux";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination } from "@/store/route-slice";
-import { geocodeAddress } from "@/lib/geocoding";
+import { resolveSuggestion, geocodeAddress } from "@/lib/geocoding";
 import { useAddressSuggestions, type Suggestion } from "@/hooks/useAddressSuggestions";
 import { AddressSuggestions } from "./address-suggestions";
 import { AddressInputLabel } from "./address-input-label";
 import { AddressInputWrapper } from "./address-input-wrapper";
-import { ADDRESS_SUGGESTIONS_HIDE_DELAY } from "@/lib/map-constants";
+import { ADDRESS_SUGGESTIONS_HIDE_DELAY, MOSCOW_CENTER } from "@/lib/map-constants";
 import type { AddressPoint } from "@/store/route-slice";
+import { RootState } from "@/store";
 import styles from "./address-input.module.css";
 
 interface AddressInputProps {
@@ -28,29 +29,36 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
   index
 }, ref) {
   const dispatch = useDispatch();
+  const startingPoint = useSelector((state: RootState) => state.route.startingPoint);
   const [inputValue, setInputValue] = useState(value);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
-  const skipBlurSaveRef = useRef(false); // Флаг для пропуска сохранения при blur
-  
-  // Синхронизируем внешний ref с внутренним
+  const skipBlurSaveRef = useRef(false);
+
+  const suggestLocationContext = useMemo(() => {
+    const [lat, lon] = startingPoint?.coordinates ?? MOSCOW_CENTER;
+    return {
+      ll: `${lon},${lat}`,
+      near: startingPoint?.address,
+    };
+  }, [startingPoint]);
+
   useImperativeHandle(ref, () => inputRef.current!, []);
-  
+
   const {
     suggestions,
     showSuggestions,
     isLoading,
     fetchSuggestions,
     setShowSuggestions,
-  } = useAddressSuggestions();
+  } = useAddressSuggestions({ locationContext: suggestLocationContext });
 
   useEffect(() => {
     setInputValue(value);
-    setSelectedIndex(-1); // Сбрасываем выбор при изменении value извне
+    setSelectedIndex(-1);
   }, [value]);
 
-  // Сбрасываем выбор при открытии/закрытии списка
   useEffect(() => {
     if (!showSuggestions) {
       setSelectedIndex(-1);
@@ -68,48 +76,66 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
         setShowSuggestions(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [setShowSuggestions]);
 
+  const applyAddressPoint = (addressPoint: AddressPoint) => {
+    if (type === 'start') {
+      dispatch(setStartingPoint(addressPoint));
+    } else if (type === 'destination' && index !== undefined) {
+      dispatch(updateDestination({ index, destination: addressPoint }));
+    }
+  };
+
+  const resolveAndApply = async (input: {
+    title: string;
+    coordinates?: [number, number];
+    uri?: string;
+  }) => {
+    const resolved = await resolveSuggestion(input);
+    if (!resolved) {
+      return false;
+    }
+
+    applyAddressPoint({
+      address: resolved.address,
+      coordinates: resolved.coordinates,
+    });
+    setInputValue(resolved.address);
+    return true;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    setSelectedIndex(-1); // Сбрасываем выбор при изменении текста
+    setSelectedIndex(-1);
     fetchSuggestions(newValue);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Escape обрабатываем всегда, независимо от наличия suggestions
     if (e.key === 'Escape') {
       e.preventDefault();
       setShowSuggestions(false);
       setSelectedIndex(-1);
-      
-      // Устанавливаем флаг, чтобы пропустить сохранение при blur
       skipBlurSaveRef.current = true;
-      
-      // Для начальной точки - очищаем поле
+
       if (type === 'start') {
         dispatch(clearStartingPoint());
         setInputValue('');
         inputRef.current?.blur();
         return;
       }
-      
-      // Для destination - всегда удаляем поле при Escape
+
       if (type === 'destination' && index !== undefined) {
         dispatch(removeDestination(index));
-        // Не вызываем blur, так как поле будет удалено и компонент размонтируется
         return;
       }
-      
-      // Иначе просто сбрасываем фокус
+
       inputRef.current?.blur();
     }
 
-    // Остальные клавиши обрабатываем только если есть suggestions
     if (!showSuggestions || suggestions.length === 0) {
       return;
     }
@@ -117,7 +143,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedIndex((prev) => 
+        setSelectedIndex((prev) =>
           prev < suggestions.length - 1 ? prev + 1 : prev
         );
         break;
@@ -128,25 +154,21 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
       case 'Enter':
         e.preventDefault();
         if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-          handleSuggestionClick(suggestions[selectedIndex]);
+          void handleSuggestionClick(suggestions[selectedIndex]);
         } else if (suggestions.length > 0) {
-          // Если ничего не выбрано, выбираем первый вариант
-          handleSuggestionClick(suggestions[0]);
+          void handleSuggestionClick(suggestions[0]);
         }
         break;
       case 'Tab':
-        // Если список открыт и есть выбранный элемент, выбираем его перед переходом
         if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
           e.preventDefault();
-          handleSuggestionClick(suggestions[selectedIndex]);
+          void handleSuggestionClick(suggestions[selectedIndex]);
         }
-        // Иначе позволяем Tab работать как обычно
         break;
     }
   };
 
   const handleInputBlurAndSave = async () => {
-    // Пропускаем сохранение, если был вызван Escape
     if (skipBlurSaveRef.current) {
       skipBlurSaveRef.current = false;
       return;
@@ -166,36 +188,26 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
       (suggestion) => suggestion.title === trimmedValue
     );
 
-    let resolvedAddress = matchedSuggestion?.title || trimmedValue;
-    let coordinates = matchedSuggestion?.coordinates;
+    let applied = false;
 
-    if (!coordinates) {
+    if (matchedSuggestion) {
+      applied = await resolveAndApply(matchedSuggestion);
+    } else {
       const geocoded = await geocodeAddress(trimmedValue);
       if (geocoded) {
-        resolvedAddress = geocoded.address;
-        coordinates = geocoded.coordinates;
+        applyAddressPoint(geocoded);
+        setInputValue(geocoded.address);
+        applied = true;
       }
     }
 
-    if (!coordinates) {
-      // Не удалось определить координаты - просто закрываем список предложений
+    if (!applied) {
       setTimeout(() => {
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
         }
       }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
       return;
-    }
-
-    const addressPoint: AddressPoint = {
-      address: resolvedAddress,
-      coordinates,
-    };
-
-    if (type === 'start') {
-      dispatch(setStartingPoint(addressPoint));
-    } else if (type === 'destination' && index !== undefined) {
-      dispatch(updateDestination({ index, destination: addressPoint }));
     }
 
     setTimeout(() => {
@@ -205,21 +217,14 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
   };
 
-  const handleSuggestionClick = (suggestion: Suggestion) => {
-    const addressPoint: AddressPoint = {
-      address: suggestion.title,
-      coordinates: suggestion.coordinates
-    };
+  const handleSuggestionClick = async (suggestion: Suggestion) => {
+    const applied = await resolveAndApply(suggestion);
+    if (!applied) {
+      return;
+    }
 
-    setInputValue(suggestion.title);
     setShowSuggestions(false);
     setSelectedIndex(-1);
-
-    if (type === 'start') {
-      dispatch(setStartingPoint(addressPoint));
-    } else if (type === 'destination' && index !== undefined) {
-      dispatch(updateDestination({ index, destination: addressPoint }));
-    }
   };
 
   const handleRemove = () => {
@@ -252,7 +257,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
         <AddressSuggestions
           suggestions={suggestions}
           isLoading={isLoading}
-          onSuggestionClick={handleSuggestionClick}
+          onSuggestionClick={(suggestion) => { void handleSuggestionClick(suggestion); }}
           suggestionsRef={suggestionsRef}
           selectedIndex={selectedIndex}
         />

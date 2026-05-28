@@ -44,13 +44,28 @@ export const routeRequestSchema = z.object({
 /**
  * Схема для валидации query параметра адреса (геокодирование)
  */
-export const geocodeQuerySchema = z.object({
-  address: z
-    .string()
-    .min(1, "Адрес не может быть пустым")
-    .max(500, "Адрес слишком длинный")
-    .trim(),
-});
+export const geocodeQuerySchema = z
+  .object({
+    address: z
+      .string()
+      .min(1, "Адрес не может быть пустым")
+      .max(500, "Адрес слишком длинный")
+      .trim()
+      .optional(),
+    uri: z
+      .string()
+      .min(1, "URI не может быть пустым")
+      .max(2000, "URI слишком длинный")
+      .trim()
+      .optional(),
+  })
+  .refine((data) => Boolean(data.address || data.uri), {
+    message: "Укажите address или uri",
+  });
+
+const coordinateString = z
+  .string()
+  .regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/, "Ожидается формат lon,lat");
 
 /**
  * Схема для валидации query параметра текста (предложения)
@@ -61,5 +76,18 @@ export const suggestQuerySchema = z.object({
     .min(1, "Текст запроса не может быть пустым")
     .max(500, "Текст запроса слишком длинный")
     .trim(),
+  ll: coordinateString.optional(),
+  bbox: z
+    .string()
+    .regex(
+      /^-?\d+(\.\d+)?,-?\d+(\.\d+)?~-?\d+(\.\d+)?,-?\d+(\.\d+)?$/,
+      "Ожидается формат lon,lat~lon,lat"
+    )
+    .optional(),
+  near: z
+    .string()
+    .max(500, "Контекст местоположения слишком длинный")
+    .trim()
+    .optional(),
 });
 
