@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useMemo, 
 import { useDispatch, useSelector } from "react-redux";
 import { setStartingPoint, clearStartingPoint, updateDestination, removeDestination, addDestination } from "@/store/route-slice";
 import { resolveSuggestion, geocodeAddress } from "@/lib/geocoding";
+import { getComparableSuggestionAddress, normalizeComparableAddress } from "@/lib/address-format";
 import { useAddressSuggestions, type Suggestion } from "@/hooks/useAddressSuggestions";
 import { AddressSuggestions } from "./address-suggestions";
 import { AddressInputLabel } from "./address-input-label";
@@ -13,6 +14,8 @@ import styles from "./address-input.module.css";
 
 const NOT_FOUND_MESSAGE = "Ничего не найдено, попробуйте изменить запрос";
 const MIN_SUGGEST_QUERY_LENGTH = 3;
+
+const COORDINATE_MATCH_EPSILON = 0.0001;
 
 interface AddressInputProps {
   label?: string;
@@ -147,15 +150,23 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     );
   }, [destinations]);
 
-  const isBusinessAdded = useCallback((suggestion: Suggestion): boolean => {
-    const normalizedTitle = suggestion.title.trim().toLowerCase();
+  const isSuggestionAlreadyAdded = useCallback((suggestion: Suggestion): boolean => {
+    const comparableAddress = normalizeComparableAddress(getComparableSuggestionAddress(suggestion));
+
     return destinations.some((destination) => {
-      const sameCoordinates =
+      if (normalizeComparableAddress(destination.address) === comparableAddress) {
+        return true;
+      }
+
+      if (
         suggestion.coordinates &&
-        Math.abs(destination.coordinates[0] - suggestion.coordinates[0]) < 0.0001 &&
-        Math.abs(destination.coordinates[1] - suggestion.coordinates[1]) < 0.0001;
-      const sameAddressText = destination.address.trim().toLowerCase() === normalizedTitle;
-      return Boolean(sameCoordinates || sameAddressText);
+        Math.abs(destination.coordinates[0] - suggestion.coordinates[0]) < COORDINATE_MATCH_EPSILON &&
+        Math.abs(destination.coordinates[1] - suggestion.coordinates[1]) < COORDINATE_MATCH_EPSILON
+      ) {
+        return true;
+      }
+
+      return false;
     });
   }, [destinations]);
 
@@ -200,12 +211,45 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     if (e.key === 'Enter') {
       e.preventDefault();
 
-      if (showSuggestions && selectedIndex >= 0 && selectedIndex < suggestions.length) {
-        void handleSuggestionClick(suggestions[selectedIndex]);
+      const highlightedSuggestion =
+        showSuggestions && selectedIndex >= 0 && selectedIndex < suggestions.length
+          ? suggestions[selectedIndex]
+          : null;
+      const hasBusinessSuggestions =
+        type === "destination" && suggestions.some((suggestion) => suggestion.kind === "business");
+
+      if (hasBusinessSuggestions) {
+        if (selectedBusinessKeys.size > 0) {
+          void handleAddSelectedBusinesses();
+          return;
+        }
+
+        if (
+          highlightedSuggestion?.kind === "business" &&
+          !isSuggestionAlreadyAdded(highlightedSuggestion)
+        ) {
+          void handleAddSelectedBusinesses([highlightedSuggestion]);
+          return;
+        }
+
+        if (highlightedSuggestion?.kind === "business") {
+          return;
+        }
+      }
+
+      if (highlightedSuggestion) {
+        void handleSuggestionClick(highlightedSuggestion);
         return;
       }
 
-      void handleInputBlurAndSave();
+      void handleInputBlurAndSave({ confirm: true });
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      skipBlurSaveRef.current = true;
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
       return;
     }
 
@@ -225,16 +269,22 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
         e.preventDefault();
         setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
         break;
-      case 'Tab':
-        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-          e.preventDefault();
-          void handleSuggestionClick(suggestions[selectedIndex]);
+      case ' ':
+        e.preventDefault();
+        if (type !== "destination" || selectedIndex < 0 || selectedIndex >= suggestions.length) {
+          break;
+        }
+        {
+          const suggestion = suggestions[selectedIndex];
+          if (suggestion.kind === "business" && !isSuggestionAlreadyAdded(suggestion)) {
+            handleToggleBusinessSelection(suggestion);
+          }
         }
         break;
     }
   };
 
-  const handleInputBlurAndSave = async () => {
+  const handleInputBlurAndSave = async ({ confirm = false }: { confirm?: boolean } = {}) => {
     if (skipBlurSaveRef.current) {
       skipBlurSaveRef.current = false;
       return;
@@ -259,6 +309,18 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
 
     if (trimmedValue === value?.trim()) {
       setNotFoundError(null);
+      setTimeout(() => {
+        if (!inputRef.current?.matches(':focus')) {
+          setShowSuggestions(false);
+        }
+      }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
+      return;
+    }
+
+    if (!confirm) {
+      setNotFoundError(null);
+      setSelectedIndex(-1);
+      setSelectedBusinessKeys(new Set());
       setTimeout(() => {
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
@@ -304,6 +366,10 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
   };
 
   const handleSuggestionClick = async (suggestion: Suggestion) => {
+    if (isSuggestionAlreadyAdded(suggestion)) {
+      return;
+    }
+
     const applied = await resolveAndApply(suggestion);
     if (!applied) {
       return;
@@ -323,7 +389,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
       return;
     }
 
-    if (isBusinessAdded(suggestion)) {
+    if (isSuggestionAlreadyAdded(suggestion)) {
       return;
     }
     const key = getBusinessKey(suggestion);
@@ -338,15 +404,44 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     });
   };
 
-  const handleAddSelectedBusinesses = async () => {
-    if (type !== "destination" || index === undefined || selectedBusinessKeys.size === 0) {
+  const handleAddSelectedBusinesses = async (extraSuggestions: Suggestion[] = []) => {
+    if (type !== "destination" || index === undefined) {
       return;
     }
 
-    const selectedSuggestions = suggestions.filter(
-      (suggestion) => suggestion.kind === "business" && selectedBusinessKeys.has(getBusinessKey(suggestion))
-    );
+    const keysToAdd = new Set(selectedBusinessKeys);
+    for (const suggestion of extraSuggestions) {
+      if (suggestion.kind === "business" && !isSuggestionAlreadyAdded(suggestion)) {
+        keysToAdd.add(getBusinessKey(suggestion));
+      }
+    }
 
+    for (const key of [...keysToAdd]) {
+      const suggestion = suggestions.find(
+        (item) => item.kind === "business" && getBusinessKey(item) === key
+      );
+      if (suggestion && isSuggestionAlreadyAdded(suggestion)) {
+        keysToAdd.delete(key);
+      }
+    }
+
+    if (keysToAdd.size === 0) {
+      return;
+    }
+
+    const selectedSuggestionsMap = new Map<string, Suggestion>();
+    for (const suggestion of suggestions) {
+      if (suggestion.kind === "business" && keysToAdd.has(getBusinessKey(suggestion))) {
+        selectedSuggestionsMap.set(getBusinessKey(suggestion), suggestion);
+      }
+    }
+    for (const suggestion of extraSuggestions) {
+      if (suggestion.kind === "business" && keysToAdd.has(getBusinessKey(suggestion))) {
+        selectedSuggestionsMap.set(getBusinessKey(suggestion), suggestion);
+      }
+    }
+
+    const selectedSuggestions = Array.from(selectedSuggestionsMap.values());
     if (selectedSuggestions.length === 0) {
       return;
     }
@@ -439,7 +534,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
           onAddSelectedBusinesses={type === "destination" ? () => { void handleAddSelectedBusinesses(); } : undefined}
           selectedBusinessCount={selectedBusinessKeys.size}
           canAddSelectedBusinesses={selectedBusinessKeys.size > 0}
-          isBusinessAdded={isBusinessAdded}
+          isSuggestionAlreadyAdded={isSuggestionAlreadyAdded}
           isBusinessSelected={isBusinessSelected}
           suggestionsRef={suggestionsRef}
           selectedIndex={selectedIndex}
