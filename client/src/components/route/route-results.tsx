@@ -17,7 +17,7 @@ import { ComparisonSummary, type RouteDisplayItem } from "./comparison-summary";
 import { RouteCardMotion, routeCardMotionStyles } from "./route-card-motion";
 
 export function RouteResults({ error }: { error: string | null }) {
-  const { routes, routeSortMode, transportMode, isCalculating, destinations } = useSelector((state: RootState) => state.route);
+  const { routes, routeSortMode, transportMode, isCalculating, destinations, startingPoint } = useSelector((state: RootState) => state.route);
   const dispatch = useDispatch();
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const prevLengthRef = useRef(destinations.length);
@@ -39,6 +39,7 @@ export function RouteResults({ error }: { error: string | null }) {
     () => destinations.filter((destination) => destination.address?.trim()).length,
     [destinations]
   );
+  const hasStartingPoint = Boolean(startingPoint?.address?.trim());
 
   const loadingCardCount = useMemo(() => {
     return Math.max(1, validDestinationCount);
@@ -113,6 +114,7 @@ export function RouteResults({ error }: { error: string | null }) {
         <ComparisonSummary
           items={sortedRoutes as RouteDisplayItem[]}
           destinationCount={validDestinationCount}
+          hasStartingPoint={hasStartingPoint}
         />
         <DestinationsSection error={error} />
         <LayoutGroup>
@@ -154,7 +156,7 @@ export function RouteResults({ error }: { error: string | null }) {
         ) : pendingDestinationIndexes.length === 0 ? (
           <div className={styles["route-results__empty-content"]}>
             <div className={styles["route-results__empty-icon"]}>🗺️</div>
-            <p>Рассчитайте маршруты, чтобы увидеть варианты</p>
+            <p>Добавьте начальную точку и пункты назначения, чтобы увидеть варианты маршрутов</p>
           </div>
         ) : null}
       </div>
@@ -170,6 +172,7 @@ export function RouteResults({ error }: { error: string | null }) {
       <ComparisonSummary
         items={sortedRoutes as RouteDisplayItem[]}
         destinationCount={validDestinationCount}
+        hasStartingPoint={hasStartingPoint}
       />
 
       <DestinationsSection error={error} />
