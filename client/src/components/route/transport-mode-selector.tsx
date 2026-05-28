@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
-import { setTransportMode, clearRoutes } from "@/store/route-slice";
+import { setTransportMode } from "@/store/route-slice";
 import { Button } from "@/components/ui/button";
 import { Footprints, Bike, Bus, Car } from "lucide-react";
 import type { TransportMode } from "@/store/route-slice";
@@ -27,26 +27,38 @@ export function TransportModeSelector() {
       e.stopPropagation();
     }
     dispatch(setTransportMode(mode));
-    dispatch(clearRoutes());
   };
 
   return (
-    <div className={styles["transport-mode-selector"]}>
-      {transportModes.map(({ mode, label, icon: Icon }) => (
-        <Button
-          key={mode}
-          variant={transportMode === mode ? "default" : "ghost"}
-          size="sm"
-          onClick={(e) => handleModeChange(mode, e)}
-          className={`${styles["transport-mode-selector__button"]} ${transportMode === mode 
-            ? styles["transport-mode-selector__button--active"] 
-            : styles["transport-mode-selector__button--inactive"]
-          }`}
-        >
-          <Icon className={styles["transport-mode-selector__icon"]} />
-          <span className={styles["transport-mode-selector__label"]}>{label}</span>
-        </Button>
-      ))}
+    <div
+      className={styles["transport-mode-selector"]}
+      role="radiogroup"
+      aria-label="Выбор способа передвижения"
+    >
+      {transportModes.map(({ mode, label, icon: Icon }) => {
+        const isActive = transportMode === mode;
+
+        return (
+          <Button
+            key={mode}
+            type="button"
+            variant="outline"
+            size="sm"
+            role="radio"
+            tabIndex={0}
+            aria-checked={isActive}
+            aria-pressed={isActive}
+            onClick={(e) => handleModeChange(mode, e)}
+            className={`${styles["transport-mode-selector__button"]} ${isActive
+              ? styles["transport-mode-selector__button--active"]
+              : styles["transport-mode-selector__button--inactive"]
+            }`}
+          >
+            <Icon className={styles["transport-mode-selector__icon"]} />
+            <span className={styles["transport-mode-selector__label"]}>{label}</span>
+          </Button>
+        );
+      })}
     </div>
   );
 }

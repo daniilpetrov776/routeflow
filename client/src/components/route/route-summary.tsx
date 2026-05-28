@@ -2,16 +2,35 @@ import { useMemo } from "react";
 import type { RouteOption } from "@/store/route-slice";
 import styles from "./route-sidebar.module.css";
 
+/**
+ * Форматирует длительность в секундах в читаемый формат
+ * Если больше часа - "X ч Y мин", если меньше - "Y мин"
+ */
+const formatBestTime = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) {
+    return `${hours} ч ${minutes} мин`;
+  }
+  return `${minutes} мин`;
+};
+
 interface RouteSummaryProps {
   routes: RouteOption[];
 }
 
 export function RouteSummary({ routes }: RouteSummaryProps) {
-  // Вычисляем лучшее время (мемоизировано для оптимизации)
-  const bestTime = useMemo(() => {
+  // Вычисляем лучшее время в секундах (мемоизировано для оптимизации)
+  const bestTimeSeconds = useMemo(() => {
     if (routes.length === 0) return 0;
-    return Math.min(...routes.map((r) => Math.round(r.duration / 60)));
+    return Math.min(...routes.map((r) => r.duration));
   }, [routes]);
+
+  // Форматируем лучшее время
+  const formattedBestTime = useMemo(() => {
+    if (bestTimeSeconds === 0) return "0 мин";
+    return formatBestTime(bestTimeSeconds);
+  }, [bestTimeSeconds]);
 
   if (routes.length === 0) {
     return null;
@@ -33,7 +52,7 @@ export function RouteSummary({ routes }: RouteSummaryProps) {
         </div>
         <div className={styles["route-sidebar__summary-item"]}>
           <div className={styles["route-sidebar__summary-value--green"]}>
-            {bestTime}м
+            {formattedBestTime}
           </div>
           <div className={styles["route-sidebar__summary-label"]}>
             Лучшее время
@@ -43,4 +62,3 @@ export function RouteSummary({ routes }: RouteSummaryProps) {
     </div>
   );
 }
-

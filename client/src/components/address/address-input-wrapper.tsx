@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import styles from "./address-input.module.css";
 
 interface AddressInputWrapperProps {
@@ -52,7 +52,7 @@ export function AddressInputWrapper({
           onClick={onRemove}
           className={styles["address-input__remove-button"]}
         >
-          <X className={styles["address-input__remove-icon"]} />
+          <Trash2 className={styles["address-input__remove-icon"]} />
         </Button>
       )}
     </div>

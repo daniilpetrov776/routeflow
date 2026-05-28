@@ -71,7 +71,38 @@ export interface RoutePropertyValue {
  * Свойства маршрута
  */
 export interface RouteProperties {
-  get(key: string): RoutePropertyValue | boolean | undefined;
+  get(key: string): RoutePropertyValue | boolean | string | undefined;
+}
+
+/**
+ * Polyline - пользовательская линия на карте
+ */
+export interface YandexPolyline {
+  options: {
+    set(options: MultiRouteOptions): void;
+    get(key: string): unknown;
+  };
+  properties: {
+    set(key: string, value: unknown): void;
+    get(key: string): unknown;
+  };
+  events: YandexEventManager;
+}
+
+export interface YandexRouteSegment {
+  properties: RouteProperties;
+}
+
+export interface YandexRouteSegmentCollection {
+  each(callback: (segment: YandexRouteSegment) => void): void;
+}
+
+export interface YandexRoutePath {
+  getSegments(): YandexRouteSegmentCollection | YandexRouteSegment[];
+}
+
+export interface YandexRoutePathCollection {
+  each(callback: (path: YandexRoutePath) => void): void;
 }
 
 /**
@@ -80,6 +111,15 @@ export interface RouteProperties {
 export interface YandexRoute {
   properties: RouteProperties;
   getPath(): Coordinates[];
+  getPaths?: () => YandexRoutePathCollection | YandexRoutePath[];
+  options?: {
+    set(options: MultiRouteOptions): void;
+    unset?(key: string): void;
+  };
+}
+
+export interface YandexRouteCollection {
+  each(callback: (route: YandexRoute) => void): void;
 }
 
 /**
@@ -88,8 +128,15 @@ export interface YandexRoute {
 export interface MultiRouteOptions {
   wayPointStartIconColor?: string;
   wayPointFinishIconColor?: string;
+  wayPointVisible?: boolean;
   routeActiveStrokeColor?: string;
   routeActiveStrokeWidth?: number;
+  routeStrokeColor?: string;
+  routeStrokeWidth?: number;
+  routeStrokeOpacity?: number;
+  strokeColor?: string;
+  strokeWidth?: number;
+  strokeOpacity?: number;
   opacity?: number;
   [key: string]: unknown;
 }
@@ -115,6 +162,8 @@ export interface MultiRouteModel {
  */
 export interface YandexMultiRoute {
   getActiveRoute(): YandexRoute | null;
+  getRoutes?: () => YandexRouteCollection;
+  setActiveRoute(route: YandexRoute | null): void;
   model: MultiRouteModel;
   options: {
     set(options: MultiRouteOptions): void;
@@ -131,8 +180,8 @@ export interface YandexMultiRoute {
  * Коллекция геообъектов на карте
  */
 export interface YandexGeoObjects {
-  add(object: YandexPlacemark | YandexMultiRoute): void;
-  remove(object: YandexPlacemark | YandexMultiRoute): void;
+  add(object: YandexPlacemark | YandexMultiRoute | YandexPolyline): void;
+  remove(object: YandexPlacemark | YandexMultiRoute | YandexPolyline): void;
   removeAll(): void;
   getBounds(): Coordinates[][] | null;
 }
@@ -181,6 +230,17 @@ export interface PlacemarkConstructor {
 }
 
 /**
+ * Конструктор Polyline
+ */
+export interface PolylineConstructor {
+  new (
+    coordinates: Coordinates[],
+    properties?: Record<string, unknown>,
+    options?: MultiRouteOptions
+  ): YandexPolyline;
+}
+
+/**
  * Параметры для создания MultiRoute
  */
 export interface MultiRouteParams {
@@ -211,6 +271,7 @@ export interface MultiRouterModule {
 export interface YandexMapsNamespace {
   Map: new (container: HTMLElement | string, state: MapOptions) => YandexMap;
   Placemark: PlacemarkConstructor;
+  Polyline: PolylineConstructor;
   multiRouter: MultiRouterModule;
   ready(callback: () => void): void;
 }

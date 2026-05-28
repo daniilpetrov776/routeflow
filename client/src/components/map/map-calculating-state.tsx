@@ -9,7 +9,7 @@ export function MapCalculatingState() {
       <div className={styles["map-container__calculating-content"]}>
         <div className={styles["map-container__calculating-spinner"]}></div>
         <p className={styles["map-container__calculating-text"]}>
-          Calculating routes...
+          Обновляем маршруты
         </p>
       </div>
     </div>

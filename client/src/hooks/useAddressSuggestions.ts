@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
+import { formatAddressDisplay } from "@/lib/address-format";
 import { sanitizeText } from "@/lib/sanitize";
 
 export interface Suggestion {
@@ -27,17 +28,31 @@ interface UseAddressSuggestionsOptions {
  * Хук для работы с предложениями адресов
  */
 export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}) {
-  const { minQueryLength = 3, debounceMs = 300 } = options;
+  const { minQueryLength = 3, debounceMs = 800 } = options;
   
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const debounceRef = useRef<number | null>(null);
+  const cacheRef = useRef<Map<string, Suggestion[]>>(new Map());
+  const requestSeqRef = useRef(0);
 
   const fetchSuggestions = useCallback(async (query: string) => {
-    if (query.length < minQueryLength) {
+    const normalizedQuery = query.trim().toLowerCase();
+    const requestSeq = ++requestSeqRef.current;
+
+    if (normalizedQuery.length < minQueryLength) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setIsLoading(false);
+      return;
+    }
+
+    const cached = cacheRef.current.get(normalizedQuery);
+    if (cached) {
+      setSuggestions(cached);
+      setShowSuggestions(cached.length > 0);
+      setIsLoading(false);
       return;
     }
 
@@ -45,25 +60,31 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
     try {
       const response = await apiRequest("GET", `/api/suggest?text=${encodeURIComponent(query)}`);
       const data = await response.json();
+      if (requestSeq !== requestSeqRef.current) return;
       
       const items: ApiSuggestion[] = (data.suggestions || []) as ApiSuggestion[];
       const mapped: Suggestion[] = items.map(item => {
         const [lon, lat] = item.coordinates || [0, 0];
+        const title = sanitizeText(item.fullAddress || item.name || '');
         return {
-          title: sanitizeText(item.fullAddress || item.name || ''),
+          title: formatAddressDisplay(title),
           subtitle: sanitizeText(item.description || ''),
           coordinates: [lat, lon] as [number, number]
         };
       });
 
+      cacheRef.current.set(normalizedQuery, mapped);
       setSuggestions(mapped);
       setShowSuggestions(mapped.length > 0);
     } catch (error) {
+      if (requestSeq !== requestSeqRef.current) return;
       console.error('Suggestions fetch failed:', error);
       setSuggestions([]);
       setShowSuggestions(false);
     } finally {
-      setIsLoading(false);
+      if (requestSeq === requestSeqRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [minQueryLength]);
 
@@ -77,8 +98,10 @@ export function useAddressSuggestions(options: UseAddressSuggestionsOptions = {}
   }, [fetchSuggestions, debounceMs]);
 
   const clearSuggestions = useCallback(() => {
+    requestSeqRef.current++;
     setSuggestions([]);
     setShowSuggestions(false);
+    setIsLoading(false);
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;

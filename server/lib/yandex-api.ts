@@ -1,6 +1,15 @@
 import { getYandexMapsApiKey } from "./api-keys";
 import { retry } from "./retry";
 
+const GEOCODER_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+interface GeocoderCacheEntry {
+  expiresAt: number;
+  data: any;
+}
+
+const geocoderCache = new Map<string, GeocoderCacheEntry>();
+
 /**
  * Создает URL для запроса к Yandex Geocoder API
  */
@@ -22,9 +31,15 @@ export function buildMapsScriptUrl(): string {
  * Выполняет запрос к Yandex Geocoder API с повторными попытками при ошибках
  */
 export async function fetchGeocoderData(query: string, results: number = 10) {
+  const cacheKey = `${results}:${query.trim().toLowerCase()}`;
+  const cached = geocoderCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const url = buildGeocoderUrl(query, results);
   
-  return retry(
+  const data = await retry(
     async () => {
       const response = await fetch(url);
 
@@ -48,15 +63,18 @@ export async function fetchGeocoderData(query: string, results: number = 10) {
           if (error.message.match(/5\d{2}/)) {
             return true;
           }
-          // Rate limiting (429) - повторяем
-          if (error.message.match(/429/)) {
-            return true;
-          }
         }
         return false;
       },
     },
     `Yandex Geocoder API request for "${query}"`
   );
+
+  geocoderCache.set(cacheKey, {
+    expiresAt: Date.now() + GEOCODER_CACHE_TTL_MS,
+    data,
+  });
+
+  return data;
 }
 
