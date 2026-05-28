@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { MAX_DESTINATIONS, MAX_DESTINATIONS_MESSAGE } from '@shared/route-limits';
 import { getItemWithDefault, setItem } from '@/lib/localStorage';
 
 export type TransportMode = 'walking' | 'cycling' | 'transit' | 'driving';
@@ -135,11 +136,15 @@ const routeSlice = createSlice({
       state.error = null;
     },
     addDestination: (state, action: PayloadAction<AddressPoint>) => {
+      if (state.destinations.length >= MAX_DESTINATIONS) {
+        state.error = MAX_DESTINATIONS_MESSAGE;
+        return;
+      }
       state.destinations.push(action.payload);
       state.error = null;
     },
     setDestinations: (state, action: PayloadAction<AddressPoint[]>) => {
-      state.destinations = action.payload;
+      state.destinations = action.payload.slice(0, MAX_DESTINATIONS);
       state.error = null;
     },
     removeDestination: (state, action: PayloadAction<number>) => {

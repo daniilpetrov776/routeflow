@@ -1,4 +1,7 @@
 import { z } from "zod";
+import routeLimits from "@shared/route-limits";
+
+const { MAX_DESTINATIONS, MAX_DESTINATIONS_MESSAGE } = routeLimits;
 
 /**
  * Схема для валидации координат [широта, долгота]
@@ -34,7 +37,7 @@ export const routeRequestSchema = z.object({
   destinations: z
     .array(addressPointSchema)
     .min(1, "Должен быть хотя бы один пункт назначения")
-    .max(10, "Максимум 10 пунктов назначения"),
+    .max(MAX_DESTINATIONS, MAX_DESTINATIONS_MESSAGE),
   transportMode: transportModeSchema,
 });
 
