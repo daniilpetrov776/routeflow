@@ -1,62 +1,177 @@
 import type { Express, Request, Response } from "express";
 import { suggestQuerySchema } from "../lib/validation-schemas";
-import { fetchGeocoderData } from "../lib/yandex-api";
+import { fetchGeosuggestData, fetchOrgSearchData } from "../lib/yandex-api";
+import type { OrgSearchResponse } from "../lib/yandex-api";
+import {
+  buildPoiSearchText,
+  isStreetNameFalsePositive,
+  looksLikePoiCategoryQuery,
+} from "../lib/poi-category";
 import { handleValidationError, handleError } from "../lib/error-handlers";
 
-/**
- * Тип для элемента из ответа Yandex Geocoder API
- */
-interface YandexGeocoderFeatureMember {
-  GeoObject: {
-    name: string;
-    description?: string;
-    metaDataProperty?: {
-      GeocoderMetaData?: {
-        text?: string;
-      };
-    };
-    Point?: {
-      pos?: string;
-    };
+export interface SuggestItem {
+  name: string;
+  description?: string;
+  fullAddress?: string;
+  coordinates?: [number, number];
+  uri?: string;
+  kind: "business" | "address";
+}
+
+/** ~2–3 км вокруг точки старта */
+const LOCAL_SEARCH_SPN = "0.025,0.025";
+
+function buildSearchOptions(ll?: string, bbox?: string) {
+  const options: { ll?: string; bbox?: string; spn?: string; results: number } = {
+    results: 10,
   };
+
+  if (ll) {
+    options.ll = ll;
+    if (!bbox) {
+      options.spn = LOCAL_SEARCH_SPN;
+    }
+  }
+  if (bbox) {
+    options.bbox = bbox;
+  }
+
+  return options;
+}
+
+function dedupeSuggestions(items: SuggestItem[]): SuggestItem[] {
+  const seen = new Set<string>();
+  const result: SuggestItem[] = [];
+
+  for (const item of items) {
+    const key = item.uri
+      ? `uri:${item.uri}`
+      : item.coordinates
+        ? `coord:${item.coordinates[0].toFixed(5)},${item.coordinates[1].toFixed(5)}:${item.name}`
+        : `name:${item.fullAddress || item.name}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(item);
+  }
+
+  return result;
+}
+
+function finalizeSuggestions(items: SuggestItem[], query: string): SuggestItem[] {
+  const deduped = dedupeSuggestions(items);
+
+  if (!looksLikePoiCategoryQuery(query)) {
+    return deduped.slice(0, 10);
+  }
+
+  const businesses = deduped.filter((item) => item.kind === "business");
+  const addresses = deduped
+    .filter((item) => item.kind === "address")
+    .filter((item) => !isStreetNameFalsePositive(item.name, query));
+
+  return [...businesses, ...addresses].slice(0, 10);
+}
+
+function mapGeosuggestResults(data: Awaited<ReturnType<typeof fetchGeosuggestData>>): SuggestItem[] {
+  return (data.results ?? []).map((item) => {
+    const isBusiness = item.tags?.includes("business") ?? false;
+    const title = item.title?.text?.trim() ?? "";
+    const subtitle = item.subtitle?.text?.trim();
+    const formattedAddress = item.address?.formatted_address?.trim();
+
+    return {
+      name: title,
+      description: subtitle,
+      fullAddress: formattedAddress || title,
+      uri: item.uri,
+      kind: isBusiness ? "business" : "address",
+    } satisfies SuggestItem;
+  }).filter((item) => item.name.length > 0);
+}
+
+function mapOrgSearchResults(data: OrgSearchResponse): SuggestItem[] {
+  return (data.features ?? []).map((feature) => {
+    const company = feature.properties?.CompanyMetaData;
+    const name = company?.name?.trim() || feature.properties?.name?.trim() || "";
+    const formattedAddress =
+      company?.Address?.formatted?.trim() ||
+      company?.address?.trim() ||
+      feature.properties?.description?.trim() ||
+      name;
+    const category = company?.Categories?.map((item) => item.name).filter(Boolean).join(", ");
+    const [lon, lat] = feature.geometry?.coordinates ?? [];
+    const hasCoordinates = Number.isFinite(lon) && Number.isFinite(lat);
+
+    return {
+      name,
+      description: category || feature.properties?.description,
+      fullAddress: formattedAddress,
+      coordinates: hasCoordinates ? ([lon, lat] as [number, number]) : undefined,
+      uri: feature.properties?.uri,
+      kind: "business" as const,
+    } satisfies SuggestItem;
+  }).filter((item) => item.name.length > 0);
+}
+
+async function fetchOrgSearchSafe(text: string, searchOptions: ReturnType<typeof buildSearchOptions>) {
+  try {
+    return await fetchOrgSearchData(text, {
+      ...searchOptions,
+      type: "biz",
+    });
+  } catch (orgSearchError) {
+    const message = orgSearchError instanceof Error ? orgSearchError.message : String(orgSearchError);
+    if (message.includes("403")) {
+      console.warn(
+        "Org Search недоступен (403): подключите «API Поиска по организациям» для ключа в кабинете Яндекса " +
+          "или задайте YANDEX_ORG_SEARCH_API_KEY"
+      );
+    } else {
+      console.warn("Org Search suggest skipped:", orgSearchError);
+    }
+    return { features: [] } satisfies OrgSearchResponse;
+  }
 }
 
 /**
- * Роут для получения предложений адресов через Yandex Maps API
+ * Роут для получения предложений адресов и организаций
  */
 export function registerSuggestRoute(app: Express) {
   app.get("/api/suggest", async (req: Request, res: Response) => {
     try {
-      // Валидируем query параметры
       const validated = suggestQuerySchema.parse(req.query);
-      const { text } = validated;
+      const { text, ll, bbox, near } = validated;
 
-      // Получаем данные из Yandex Geocoder API
-      const data = await fetchGeocoderData(text, 10);
+      const searchOptions = buildSearchOptions(ll, bbox);
+      const isPoiCategory = looksLikePoiCategoryQuery(text);
+      const searchText = buildPoiSearchText(text, near);
 
-      // Парсим геокодер и извлекаем подходящие предложения (например, адреса)
-      const suggestions = (
-        data.response?.GeoObjectCollection?.featureMember || []
-      ).map((item: YandexGeocoderFeatureMember) => {
-        const geoObject = item.GeoObject;
-        return {
-          name: geoObject.name,
-          description: geoObject.description,
-          fullAddress: geoObject.metaDataProperty?.GeocoderMetaData?.text,
-          coordinates: geoObject.Point?.pos?.split(" ").map(Number), // [lon, lat]
-        };
-      });
+      const [orgSearchData, geosuggestData] = await Promise.all([
+        fetchOrgSearchSafe(searchText, searchOptions),
+        fetchGeosuggestData(searchText, {
+          ...searchOptions,
+          types: isPoiCategory ? "biz" : "biz,geo",
+        }),
+      ]);
+
+      const suggestions = finalizeSuggestions(
+        [
+          ...mapOrgSearchResults(orgSearchData),
+          ...mapGeosuggestResults(geosuggestData),
+        ],
+        text
+      );
 
       res.json({ suggestions });
     } catch (error) {
-      // Обработка ошибок валидации
       if (handleValidationError(error, req, res, "Suggest")) {
         return;
       }
 
-      // Обработка других ошибок
-      handleError(error, res, "Suggest (via geocoder) failed");
+      handleError(error, res, "Suggest failed");
     }
   });
 }
-

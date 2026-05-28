@@ -74,7 +74,20 @@
 }
 
 .address-input__suggestion-icon {
-  @apply mr-3;
+  @apply mr-3 flex-shrink-0;
+}
+
+.address-input__suggestion-text {
+  @apply min-w-0 flex-1;
+}
+
+.address-input__suggestion-title-row {
+  @apply flex items-start justify-between gap-2;
+}
+
+.address-input__suggestion-kind {
+  @apply flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground;
+  background-color: hsl(var(--muted) / 0.8);
 }
 
 .address-input__suggestion-title {
