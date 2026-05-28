@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { LayoutGroup } from "framer-motion";
+import { AnimatePresence, LayoutGroup } from "framer-motion";
 import { RootState } from "@/store";
 import {
   removeDestination,
@@ -117,9 +117,13 @@ export function RouteResults({ error }: { error: string | null }) {
           hasStartingPoint={hasStartingPoint}
         />
         <DestinationsSection error={error} />
-        <LayoutGroup>
+        <LayoutGroup id="route-results-empty">
+          <AnimatePresence initial={false}>
           {pendingDestinationIndexes.map((destinationIndex) => (
-            <RouteCardMotion motionKey={`pending-route-${destinationIndex}`}>
+            <RouteCardMotion
+              key={`pending-route-${destinationIndex}`}
+              motionKey={`pending-route-${destinationIndex}`}
+            >
               <div className={routeCardMotionStyles.pendingCard}>
                 <AddressInput
                   ref={(ref) => setInputRef(destinationIndex, ref)}
@@ -131,6 +135,7 @@ export function RouteResults({ error }: { error: string | null }) {
               </div>
             </RouteCardMotion>
           ))}
+          </AnimatePresence>
         </LayoutGroup>
         {isCalculating ? (
           <div className={styles["route-results__loading-list"]} aria-live="polite">
@@ -184,9 +189,13 @@ export function RouteResults({ error }: { error: string | null }) {
         </div>
       )}
 
-      <LayoutGroup>
+      <LayoutGroup id="route-results-list">
+        <AnimatePresence initial={false}>
         {pendingDestinationIndexes.map((destinationIndex) => (
-          <RouteCardMotion motionKey={`pending-route-${destinationIndex}`}>
+          <RouteCardMotion
+            key={`pending-route-${destinationIndex}`}
+            motionKey={`pending-route-${destinationIndex}`}
+          >
             <div className={routeCardMotionStyles.pendingCard}>
               <AddressInput
                 ref={(ref) => setInputRef(destinationIndex, ref)}
@@ -199,21 +208,22 @@ export function RouteResults({ error }: { error: string | null }) {
           </RouteCardMotion>
         ))}
         {sortedRoutes.map(({ route, originalIndex, colorIndex, isRecommended }) => (
-          <RouteCardMotion motionKey={route.id}>
-          <RouteCard
-            route={route}
-            routes={routes}
-            index={colorIndex}
-            isRecommended={isRecommended}
-            transportMode={transportMode}
-            onClick={() => dispatch(requestOpenRouteBalloonByIndex(originalIndex))}
-            onSelectAlternative={(alternativeIndex) =>
-              dispatch(setSelectedAlternative({ routeIndex: originalIndex, alternativeIndex }))
-            }
-            onRemove={() => handleRemoveByRoute(originalIndex)}
-          />
-        </RouteCardMotion>
+          <RouteCardMotion key={route.id} motionKey={route.id}>
+            <RouteCard
+              route={route}
+              routes={routes}
+              index={colorIndex}
+              isRecommended={isRecommended}
+              transportMode={transportMode}
+              onClick={() => dispatch(requestOpenRouteBalloonByIndex(originalIndex))}
+              onSelectAlternative={(alternativeIndex) =>
+                dispatch(setSelectedAlternative({ routeIndex: originalIndex, alternativeIndex }))
+              }
+              onRemove={() => handleRemoveByRoute(originalIndex)}
+            />
+          </RouteCardMotion>
         ))}
+        </AnimatePresence>
       </LayoutGroup>
     </div>
   );
