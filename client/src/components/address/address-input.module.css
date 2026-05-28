@@ -58,27 +58,54 @@
 }
 
 .address-input__suggestions {
-  @apply absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto;
+  @apply absolute top-full left-0 right-0 z-10 mt-1 overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-popover shadow-lg;
+  max-height: min(26rem, 52vh);
 }
 
 .address-input__suggestion-item {
-  @apply cursor-pointer p-2 hover:bg-accent transition-colors;
+  @apply cursor-pointer overflow-hidden p-2 transition-colors hover:bg-accent;
 }
 
 .address-input__business-header {
-  @apply sticky top-0 z-[1] flex items-center justify-between gap-2 border-b border-border bg-popover px-2 py-2 text-xs font-medium text-muted-foreground;
+  @apply sticky top-0 z-[1] flex flex-wrap items-center justify-between gap-2 border-b border-border bg-popover px-2 py-2 text-xs font-medium text-muted-foreground;
+}
+
+.address-input__business-header > div:first-child {
+  @apply min-w-0 flex-1;
 }
 
 .address-input__add-selected-button {
-  @apply rounded border border-border bg-background px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:text-muted-foreground disabled:opacity-60;
+  @apply flex-shrink-0 rounded border border-border bg-background px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:text-muted-foreground disabled:opacity-60;
 }
 
 .address-input__suggestion-item--selected {
   @apply bg-accent;
 }
 
+.address-input__suggestion-item--business-selected {
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.45);
+}
+
+.address-input__suggestion-item--already-added {
+  @apply cursor-default opacity-60;
+}
+
+.address-input__suggestion-item--already-added:hover {
+  background-color: transparent;
+}
+
+.address-input__suggestion-in-route-badge {
+  @apply inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium;
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 0.12);
+}
+
+.address-input__suggestion-status-row {
+  @apply mt-1;
+}
+
 .address-input__suggestion-content {
-  @apply flex items-center;
+  @apply flex min-w-0 items-start;
 }
 
 .address-input__suggestion-icon {
@@ -90,28 +117,32 @@
 }
 
 .address-input__suggestion-title-row {
-  @apply flex items-start justify-between gap-2;
+  @apply flex min-w-0 items-start justify-between gap-2;
+}
+
+.address-input__suggestion-meta-row {
+  @apply mt-1 flex min-w-0 items-start justify-between gap-2;
 }
 
 .address-input__suggestion-actions {
-  @apply flex items-center gap-2;
+  @apply ml-auto flex flex-shrink-0 items-center;
 }
 
 .address-input__suggestion-kind {
-  @apply flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground;
+  @apply flex-shrink-0 self-start rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground;
   background-color: hsl(var(--muted) / 0.8);
 }
 
 .address-input__add-business-button {
-  @apply rounded border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:text-muted-foreground disabled:opacity-70;
+  @apply flex-shrink-0 rounded border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:text-muted-foreground disabled:opacity-70;
 }
 
 .address-input__suggestion-title {
-  @apply font-medium text-foreground;
+  @apply min-w-0 flex-1 break-words font-medium text-foreground;
 }
 
 .address-input__suggestion-subtitle {
-  @apply text-sm text-muted-foreground;
+  @apply min-w-0 flex-1 break-words text-sm text-muted-foreground;
 }
 
 .address-input__loading {
@@ -129,7 +160,7 @@
   }
 
   .address-input__suggestions {
-    @apply max-h-48;
+    max-height: min(18rem, 42vh);
   }
 
   .address-input__suggestion-item {

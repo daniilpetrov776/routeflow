@@ -11,7 +11,7 @@ interface AddressSuggestionsProps {
   onAddSelectedBusinesses?: () => void;
   selectedBusinessCount?: number;
   canAddSelectedBusinesses?: boolean;
-  isBusinessAdded?: (suggestion: Suggestion) => boolean;
+  isSuggestionAlreadyAdded?: (suggestion: Suggestion) => boolean;
   isBusinessSelected?: (suggestion: Suggestion) => boolean;
   suggestionsRef: React.RefObject<HTMLDivElement>;
   selectedIndex?: number;
@@ -33,12 +33,13 @@ export function AddressSuggestions({
   onAddSelectedBusinesses,
   selectedBusinessCount = 0,
   canAddSelectedBusinesses = false,
-  isBusinessAdded,
+  isSuggestionAlreadyAdded,
   isBusinessSelected,
   suggestionsRef,
   selectedIndex = -1,
 }: AddressSuggestionsProps) {
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const businessHeaderRef = useRef<HTMLDivElement>(null);
   const businessSuggestionsCount = suggestions.filter((item) => item.kind === "business").length;
   const canSelectBusinesses = Boolean(onToggleBusinessSelection) && businessSuggestionsCount > 0;
 
@@ -46,16 +47,19 @@ export function AddressSuggestions({
     if (selectedIndex >= 0 && selectedItemRef.current && suggestionsRef.current) {
       const container = suggestionsRef.current;
       const item = selectedItemRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const itemRect = item.getBoundingClientRect();
+      const headerHeight = businessHeaderRef.current?.offsetHeight ?? 0;
+      const itemTop = item.offsetTop;
+      const itemBottom = itemTop + item.offsetHeight;
+      const visibleTop = container.scrollTop + headerHeight;
+      const visibleBottom = container.scrollTop + container.clientHeight;
 
-      if (itemRect.top < containerRect.top) {
-        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      } else if (itemRect.bottom > containerRect.bottom) {
-        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (itemTop < visibleTop) {
+        container.scrollTop = itemTop - headerHeight;
+      } else if (itemBottom > visibleBottom) {
+        container.scrollTop = itemBottom - container.clientHeight;
       }
     }
-  }, [selectedIndex, suggestionsRef]);
+  }, [selectedIndex, suggestionsRef, canSelectBusinesses, suggestions.length]);
 
   if (isLoading) {
     return (
@@ -82,7 +86,7 @@ export function AddressSuggestions({
       className={styles["address-input__suggestions"]}
     >
       {canSelectBusinesses && (
-        <div className={styles["address-input__business-header"]}>
+        <div ref={businessHeaderRef} className={styles["address-input__business-header"]}>
           <div>Выберите организации, которые нужно добавить в пункты назначения.</div>
           <button
             type="button"
@@ -95,57 +99,79 @@ export function AddressSuggestions({
           </button>
         </div>
       )}
-      {suggestions.map((suggestion, idx) => (
-        <div
-          key={`${suggestion.kind}-${suggestion.title}-${idx}`}
-          ref={idx === selectedIndex ? selectedItemRef : null}
-          onClick={() => onSuggestionClick(suggestion)}
-          className={`${styles["address-input__suggestion-item"]} ${
-            idx === selectedIndex ? styles["address-input__suggestion-item--selected"] : ""
-          }`}
-        >
-          <div className={styles["address-input__suggestion-content"]}>
-            <span className={styles["address-input__suggestion-icon"]}>
-              {getSuggestionIcon(suggestion.kind)}
-            </span>
-            <div className={styles["address-input__suggestion-text"]}>
-              <div className={styles["address-input__suggestion-title-row"]}>
-                <div className={styles["address-input__suggestion-title"]}>
-                  {sanitizeText(suggestion.title)}
-                </div>
-                <div className={styles["address-input__suggestion-actions"]}>
+      {suggestions.map((suggestion, idx) => {
+        const alreadyAdded = Boolean(isSuggestionAlreadyAdded?.(suggestion));
+        const businessSelected = suggestion.kind === "business" && Boolean(isBusinessSelected?.(suggestion));
+
+        return (
+          <div
+            key={`${suggestion.kind}-${suggestion.title}-${idx}`}
+            ref={idx === selectedIndex ? selectedItemRef : null}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              if (alreadyAdded) {
+                return;
+              }
+              onSuggestionClick(suggestion);
+            }}
+            className={`${styles["address-input__suggestion-item"]} ${
+              idx === selectedIndex ? styles["address-input__suggestion-item--selected"] : ""
+            } ${businessSelected ? styles["address-input__suggestion-item--business-selected"] : ""} ${
+              alreadyAdded ? styles["address-input__suggestion-item--already-added"] : ""
+            }`}
+            aria-selected={suggestion.kind === "business" ? businessSelected : undefined}
+            aria-disabled={alreadyAdded || undefined}
+          >
+            <div className={styles["address-input__suggestion-content"]}>
+              <span className={styles["address-input__suggestion-icon"]}>
+                {getSuggestionIcon(suggestion.kind)}
+              </span>
+              <div className={styles["address-input__suggestion-text"]}>
+                <div className={styles["address-input__suggestion-title-row"]}>
+                  <div className={styles["address-input__suggestion-title"]}>
+                    {sanitizeText(suggestion.title)}
+                  </div>
                   <span className={styles["address-input__suggestion-kind"]}>
                     {getSuggestionKindLabel(suggestion.kind)}
                   </span>
-                  {suggestion.kind === "business" && onToggleBusinessSelection && (
-                    <button
-                      type="button"
-                      className={styles["address-input__add-business-button"]}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onToggleBusinessSelection(suggestion);
-                      }}
-                      disabled={Boolean(isBusinessAdded?.(suggestion))}
-                    >
-                      {isBusinessAdded?.(suggestion)
-                        ? "Добавлено"
-                        : isBusinessSelected?.(suggestion)
-                          ? "Выбрано"
-                          : "Выбрать"}
-                    </button>
-                  )}
                 </div>
+                {alreadyAdded && (
+                  <div className={styles["address-input__suggestion-status-row"]}>
+                    <span className={styles["address-input__suggestion-in-route-badge"]}>
+                      В маршруте
+                    </span>
+                  </div>
+                )}
+                {(suggestion.subtitle ||
+                  (suggestion.kind === "business" && onToggleBusinessSelection && !alreadyAdded)) && (
+                  <div className={styles["address-input__suggestion-meta-row"]}>
+                    {suggestion.subtitle && (
+                      <div className={styles["address-input__suggestion-subtitle"]}>
+                        {sanitizeText(suggestion.subtitle)}
+                      </div>
+                    )}
+                    {suggestion.kind === "business" && onToggleBusinessSelection && !alreadyAdded && (
+                      <div className={styles["address-input__suggestion-actions"]}>
+                        <button
+                          type="button"
+                          className={styles["address-input__add-business-button"]}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onToggleBusinessSelection(suggestion);
+                          }}
+                        >
+                          {isBusinessSelected?.(suggestion) ? "Выбрано" : "Выбрать"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {suggestion.subtitle && (
-                <div className={styles["address-input__suggestion-subtitle"]}>
-                  {sanitizeText(suggestion.subtitle)}
-                </div>
-              )}
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

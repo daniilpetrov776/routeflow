@@ -84,3 +84,37 @@ export const formatBusinessAddressDisplay = (
 
   return [cleanName, ...uniqueAddressParts].filter(Boolean).join(", ");
 };
+
+function extractAddressFromSubtitle(subtitle?: string): string | undefined {
+  if (!subtitle?.trim()) {
+    return undefined;
+  }
+
+  const parts = subtitle.split("·");
+  if (parts.length > 1) {
+    return parts[parts.length - 1]?.trim() || undefined;
+  }
+
+  return undefined;
+}
+
+export function getComparableSuggestionAddress(suggestion: {
+  title: string;
+  subtitle?: string;
+  fullAddress?: string;
+  kind: "business" | "address";
+}): string {
+  if (suggestion.kind === "business") {
+    const addressSource =
+      suggestion.fullAddress?.trim() ||
+      extractAddressFromSubtitle(suggestion.subtitle) ||
+      suggestion.subtitle?.trim();
+    return formatBusinessAddressDisplay(suggestion.title, addressSource);
+  }
+
+  return formatAddressDisplay(suggestion.fullAddress || suggestion.title);
+}
+
+export function normalizeComparableAddress(address: string): string {
+  return address.trim().toLowerCase();
+}
