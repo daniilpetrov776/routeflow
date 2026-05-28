@@ -17,7 +17,7 @@ import {
 } from "@/store/route-slice";
 import { toYandexRoutesArray } from "@/lib/route/yandex-route-utils";
 import { recalculateBalloonPosition } from "@/lib/route/route-balloon-position";
-import { applyRouteLineAppearance } from "@/lib/route/route-appearance";
+import { applyRouteLineAppearance, getRouteLineAppearance } from "@/lib/route/route-appearance";
 import { getRouteDisplayItems } from "@/lib/route/route-display-order";
 import { extractRouteCoordinates } from "@/lib/route/route-properties";
 import {
@@ -59,6 +59,12 @@ export function MapContainer({
 
   const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
   const { isCalculating, transportMode, routeSortMode, balloon } = useSelector((state: RootState) => state.route);
+  const actualTheme = useSelector((state: RootState) => state.theme.actualTheme);
+  const isDarkMap = actualTheme === "dark";
+  const routeLineAppearance = useMemo(
+    () => getRouteLineAppearance(isDarkMap),
+    [isDarkMap]
+  );
   const requestedRouteIndex = useSelector((state: RootState) => state.route.balloon.requestedRouteIndex);
   
   // Отслеживаем последние значения для предотвращения лишних пересчетов
@@ -136,17 +142,20 @@ export function MapContainer({
       const colorIndex = getRouteColorIndex(idx);
       const isRecommended = idx === recommendedRouteIndex;
       const routeColor = getRouteColor(colorIndex);
+      const activeStrokeWidth = isRecommended
+        ? ROUTE_STYLES.FASTEST_STROKE_WIDTH
+        : ROUTE_STYLES.NORMAL_STROKE_WIDTH;
       multiRouteObj.options.set({
         wayPointVisible: false,
         routeActiveStrokeColor: routeColor,
         routeStrokeColor: routeColor,
         routeStrokeWidth: ROUTE_STYLES.NORMAL_STROKE_WIDTH,
-        routeStrokeOpacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
-        routeActiveStrokeWidth: isRecommended ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
-        routeActiveStrokeOpacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
-        opacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
+        routeStrokeOpacity: routeLineAppearance.inactiveOpacity,
+        routeActiveStrokeWidth: activeStrokeWidth + routeLineAppearance.activeWidthBoost,
+        routeActiveStrokeOpacity: routeLineAppearance.activeOpacity,
+        opacity: routeLineAppearance.inactiveOpacity,
       });
-      applyRouteLineAppearance(multiRouteObj, routeColor, isRecommended ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH);
+      applyRouteLineAppearance(multiRouteObj, routeColor, activeStrokeWidth, isDarkMap);
     });
 
     routesRef.current.forEach((route) => {
@@ -161,7 +170,7 @@ export function MapContainer({
     if (recommendedRoute) {
       yandexMapRef.current.geoObjects.add(recommendedRoute);
     }
-  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, yandexMapRef, routesRef]);
+  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, yandexMapRef, routesRef, isDarkMap, routeLineAppearance]);
 
   useEffect(() => {
     if (!yandexMapRef.current || !window.ymaps) return;
@@ -199,16 +208,34 @@ export function MapContainer({
       const width = isRecommended
         ? ROUTE_STYLES.FASTEST_STROKE_WIDTH
         : ROUTE_STYLES.NORMAL_STROKE_WIDTH;
+      const overlayWidth = width + routeLineAppearance.activeWidthBoost;
+      const overlayZIndex = 1000 + colorIndex;
+
+      if (routeLineAppearance.overlayOutlineWidth > 0) {
+        const outline = new window.ymaps.Polyline(
+          coordinates,
+          {},
+          {
+            strokeColor: routeLineAppearance.overlayOutlineColor,
+            strokeWidth: overlayWidth + routeLineAppearance.overlayOutlineWidth * 2,
+            strokeOpacity: routeLineAppearance.overlayOutlineOpacity,
+            opacity: routeLineAppearance.overlayOutlineOpacity,
+            zIndex: overlayZIndex,
+          }
+        );
+        yandexMapRef.current?.geoObjects.add(outline);
+        selectedRouteOverlaysRef.current.push(outline);
+      }
 
       const overlay = new window.ymaps.Polyline(
         coordinates,
         {},
         {
           strokeColor: color,
-          strokeWidth: width,
-          strokeOpacity: ROUTE_STYLES.ACTIVE_OVERLAY_OPACITY,
-          opacity: ROUTE_STYLES.ACTIVE_OVERLAY_OPACITY,
-          zIndex: 1000 + colorIndex,
+          strokeWidth: overlayWidth,
+          strokeOpacity: routeLineAppearance.overlayOpacity,
+          opacity: routeLineAppearance.overlayOpacity,
+          zIndex: overlayZIndex + 1,
         }
       );
 
@@ -222,7 +249,7 @@ export function MapContainer({
       });
       selectedRouteOverlaysRef.current = [];
     };
-  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, yandexMapRef]);
+  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, yandexMapRef, routeLineAppearance]);
 
   // Redux → карта: активная альтернатива
   useEffect(() => {
@@ -245,10 +272,11 @@ export function MapContainer({
       applyRouteLineAppearance(
         multi,
         getRouteColor(colorIndex),
-        idx === recommendedRouteIndex ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH
+        idx === recommendedRouteIndex ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+        isDarkMap
       );
     });
-  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, routesRef]);
+  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, routesRef, isDarkMap]);
 
   // Карта → Redux: пользователь сменил активный маршрут на карте
   useEffect(() => {
@@ -274,7 +302,8 @@ export function MapContainer({
         applyRouteLineAppearance(
           multi,
           getRouteColor(colorIndex),
-          routeIdx === recommendedRouteIndex ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH
+          routeIdx === recommendedRouteIndex ? ROUTE_STYLES.FASTEST_STROKE_WIDTH : ROUTE_STYLES.NORMAL_STROKE_WIDTH,
+          isDarkMap
         );
       };
       multi.events.add("activeroutechange", handler);
@@ -290,7 +319,7 @@ export function MapContainer({
     return () => {
       cleanups.forEach((fn) => fn());
     };
-  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, routesRef, store]);
+  }, [calculatedRoutes, getRouteColorIndex, recommendedRouteIndex, routesRef, store, isDarkMap]);
 
   // Эффект для открытия balloon по запросу из Redux
   useEffect(() => {

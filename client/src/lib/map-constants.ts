@@ -1,4 +1,5 @@
 import type { Coordinates } from "@/types/yandex-maps";
+import { MAX_DESTINATIONS } from "@shared/route-limits";
 
 /**
  * Константы для работы с картой и маршрутами
@@ -41,7 +42,7 @@ export const MAP_BOUNDS_ADJUSTMENT_DELAY = 1000;
  * Цвета для маршрутов
  */
 export const ROUTE_COLORS = {
-  /** Цвета маршрутов, которые повторяются на карте и в карточках */
+  /** Уникальный цвет для каждого маршрута (до MAX_DESTINATIONS) */
   PALETTE: [
     "#16a34a",
     "#2563eb",
@@ -49,6 +50,10 @@ export const ROUTE_COLORS = {
     "#9333ea",
     "#0891b2",
     "#db2777",
+    "#ca8a04",
+    "#4f46e5",
+    "#0d9488",
+    "#e11d48",
   ],
   /** Зеленый цвет для быстрого/активного маршрута */
   FASTEST: "#16a34a",
@@ -58,8 +63,11 @@ export const ROUTE_COLORS = {
   FINISH: "#dc3545",
 } as const;
 
-export const getRouteColor = (index: number): string =>
-  ROUTE_COLORS.PALETTE[index % ROUTE_COLORS.PALETTE.length];
+export const getRouteColor = (index: number): string => {
+  const palette = ROUTE_COLORS.PALETTE;
+  const clampedIndex = Math.max(0, Math.min(index, MAX_DESTINATIONS - 1, palette.length - 1));
+  return palette[clampedIndex];
+};
 
 /**
  * Настройки отображения маршрутов
@@ -73,6 +81,15 @@ export const ROUTE_STYLES = {
   BASE_STROKE_OPACITY: 0.70,
   /** Прозрачность дублирующей линии выбранного маршрута. */
   ACTIVE_OVERLAY_OPACITY: 0.80,
+  /** Настройки для тёмной темы карты — выше контраст активной альтернативы */
+  DARK: {
+    ACTIVE_OPACITY: 1,
+    ACTIVE_WIDTH_BOOST: 2,
+    OVERLAY_OPACITY: 1,
+    OVERLAY_OUTLINE_COLOR: "#ffffff",
+    OVERLAY_OUTLINE_WIDTH: 3,
+    OVERLAY_OUTLINE_OPACITY: 0.9,
+  },
   /** Непрозрачность быстрого маршрута */
   FASTEST_OPACITY: 1.0,
   /** Непрозрачность обычного маршрута */

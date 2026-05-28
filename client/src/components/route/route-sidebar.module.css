@@ -212,6 +212,10 @@
   @apply h-4 w-4 mr-1;
 }
 
+.route-sidebar__destinations-limit-hint {
+  @apply text-xs text-muted-foreground;
+}
+
 .route-sidebar__error {
   @apply p-3 border rounded-lg text-sm text-destructive;
   background-color: hsl(var(--destructive) / 0.1);
