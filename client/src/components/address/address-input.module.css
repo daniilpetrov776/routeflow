@@ -48,12 +48,9 @@
 }
 
 .address-input__remove-button {
-  @apply absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2 rounded-md text-muted-foreground hover:bg-accent hover:text-destructive;
+  @apply absolute right-0 top-1/2 h-10 w-10 -translate-y-1/2 rounded-md text-muted-foreground hover:bg-accent hover:text-destructive;
   background-color: hsl(var(--background));
-  height: 2rem !important;
-  width: 2rem !important;
   padding: 0 !important;
-  right: 0.5rem !important;
 }
 
 .address-input__remove-icon {
@@ -92,6 +89,10 @@
   @apply animate-pulse;
 }
 
+.address-input__error {
+  @apply mt-1 text-sm text-destructive;
+}
+
 /* Мобильные устройства (до 768px) */
 @media (max-width: 768px) {
   .address-input__label {
@@ -111,6 +112,10 @@
   }
 
   .address-input__suggestion-subtitle {
+    @apply text-xs;
+  }
+
+  .address-input__error {
     @apply text-xs;
   }
 }

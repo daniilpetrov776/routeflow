@@ -185,7 +185,10 @@
 }
 
 .route-results__card-content {
-  @apply p-5 !pt-5;
+  padding-top: 24px !important;
+  padding-bottom: 24px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
   position: relative;
 }
 
@@ -193,6 +196,10 @@
   @apply mb-4;
   display: grid;
   grid-template-columns: 3fr 1fr
+}
+
+.route-results__card-header--recommended {
+  margin-top: 1.25rem;
 }
 
 .route-results__card-header-left {
@@ -206,12 +213,20 @@
 }
 
 .route-results__card-badge {
-  @apply  bg-transparent p-0 font-semibold;
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  z-index: 2;
+  @apply rounded-full px-3 py-1 text-xs font-semibold;
   color: var(--route-color);
-  font-size: 0.72rem;
+  background: hsl(var(--card));
+  border: 1px solid color-mix(in srgb, var(--route-color) 55%, hsl(var(--border)));
+  box-shadow:
+    0 0 0 2px hsl(var(--card)),
+    0 0 12px color-mix(in srgb, var(--route-color) 55%, transparent),
+    0 0 24px color-mix(in srgb, var(--route-color) 35%, transparent);
   letter-spacing: 0;
-  box-shadow: none;
-  border: 0;
   text-shadow: none;
 }
 
@@ -358,7 +373,10 @@
   }
 
   .route-results__card-content {
-    @apply p-4 !pt-4;
+    padding-top: 24px !important;
+    padding-bottom: 24px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
   }
 
   .route-results__card-grid {
@@ -389,6 +407,9 @@
   }
 
   .route-results__card-content {
-    @apply p-4 !pt-4;
+    padding-top: 24px !important;
+    padding-bottom: 24px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
   }
 }

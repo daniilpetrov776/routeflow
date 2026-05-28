@@ -4,7 +4,7 @@
 }
 
 .transport-mode-selector__button {
-  @apply min-h-10 w-full min-w-0 justify-start rounded-md border border-transparent bg-transparent px-3 text-muted-foreground shadow-none;
+  @apply min-h-10 w-full min-w-0 justify-center rounded-md border border-transparent bg-transparent px-3 text-muted-foreground shadow-none;
   position: relative;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -55,7 +55,7 @@
 }
 
 .transport-mode-selector__label {
-  @apply min-w-0 flex-1 whitespace-normal text-left text-xs font-medium leading-tight;
+  @apply min-w-0 whitespace-normal text-center text-xs font-medium leading-tight;
 }
 
 /* Мобильные устройства (до 768px) */

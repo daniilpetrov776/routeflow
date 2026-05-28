@@ -29,6 +29,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
 }, ref) {
   const dispatch = useDispatch();
   const [inputValue, setInputValue] = useState(value);
+  const [notFoundError, setNotFoundError] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -76,6 +77,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
+    setNotFoundError(null);
     setSelectedIndex(-1); // Сбрасываем выбор при изменении текста
     fetchSuggestions(newValue);
   };
@@ -109,6 +111,18 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
       inputRef.current?.blur();
     }
 
+    if (e.key === 'Enter') {
+      e.preventDefault();
+
+      if (showSuggestions && selectedIndex >= 0 && selectedIndex < suggestions.length) {
+        handleSuggestionClick(suggestions[selectedIndex]);
+        return;
+      }
+
+      void handleInputBlurAndSave();
+      return;
+    }
+
     // Остальные клавиши обрабатываем только если есть suggestions
     if (!showSuggestions || suggestions.length === 0) {
       return;
@@ -124,15 +138,6 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
       case 'ArrowUp':
         e.preventDefault();
         setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-          handleSuggestionClick(suggestions[selectedIndex]);
-        } else if (suggestions.length > 0) {
-          // Если ничего не выбрано, выбираем первый вариант
-          handleSuggestionClick(suggestions[0]);
-        }
         break;
       case 'Tab':
         // Если список открыт и есть выбранный элемент, выбираем его перед переходом
@@ -153,7 +158,24 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     }
 
     const trimmedValue = inputValue.trim();
-    if (!trimmedValue || trimmedValue === value?.trim()) {
+    if (!trimmedValue) {
+      setNotFoundError(null);
+
+      if (type === 'destination' && index !== undefined) {
+        dispatch(removeDestination(index));
+        return;
+      }
+
+      setTimeout(() => {
+        if (!inputRef.current?.matches(':focus')) {
+          setShowSuggestions(false);
+        }
+      }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
+      return;
+    }
+
+    if (trimmedValue === value?.trim()) {
+      setNotFoundError(null);
       setTimeout(() => {
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
@@ -178,7 +200,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     }
 
     if (!coordinates) {
-      // Не удалось определить координаты - просто закрываем список предложений
+      setNotFoundError("Ничего не найдено, попробуйте изменить запрос");
       setTimeout(() => {
         if (!inputRef.current?.matches(':focus')) {
           setShowSuggestions(false);
@@ -186,6 +208,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
       }, ADDRESS_SUGGESTIONS_HIDE_DELAY);
       return;
     }
+    setNotFoundError(null);
 
     const addressPoint: AddressPoint = {
       address: resolvedAddress,
@@ -212,6 +235,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     };
 
     setInputValue(suggestion.title);
+    setNotFoundError(null);
     setShowSuggestions(false);
     setSelectedIndex(-1);
 
@@ -226,6 +250,7 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
     if (type === 'start') {
       dispatch(clearStartingPoint());
       setInputValue('');
+      setNotFoundError(null);
     } else if (type === 'destination' && index !== undefined) {
       dispatch(removeDestination(index));
     }
@@ -256,6 +281,10 @@ export const AddressInput = forwardRef<HTMLInputElement, AddressInputProps>(func
           suggestionsRef={suggestionsRef}
           selectedIndex={selectedIndex}
         />
+      )}
+
+      {notFoundError && (
+        <div className={styles["address-input__error"]}>{notFoundError}</div>
       )}
     </div>
   );

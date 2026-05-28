@@ -84,8 +84,16 @@ export function RouteCard({
       style={{ "--route-color": routeColor } as CSSProperties}
       onClick={onClick}
     >
+      {showRecommended && (
+        <Badge variant="secondary" className={styles["route-results__card-badge"]}>
+          Рекомендуемый
+        </Badge>
+      )}
+
       <CardContent className={styles["route-results__card-content"]}>
-        <div className={styles["route-results__card-header"]}>
+        <div
+          className={`${styles["route-results__card-header"]} ${showRecommended ? styles["route-results__card-header--recommended"] : ""}`}
+        >
           <div className={styles["route-results__card-header-left"]}>
             <span
               className={styles["route-results__card-position"]}
@@ -98,11 +106,6 @@ export function RouteCard({
             </span>
           </div>
           <div className={styles["route-results__card-header-right"]}>
-            {showRecommended && (
-              <Badge variant="secondary" className={styles["route-results__card-badge"]}>
-                Рекомендуемый
-              </Badge>
-            )}
             {onRemove && (
               <Button
                 type="button"
