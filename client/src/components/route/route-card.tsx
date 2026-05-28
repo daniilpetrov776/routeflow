@@ -72,12 +72,14 @@ export function RouteCard({
 }: RouteCardProps) {
   const routeColor = getRouteColor(index);
   const hasAlternatives = route.alternatives.length > 1;
+  const hasComparison = routes.length > 1;
+  const showRecommended = hasComparison && isRecommended;
   const showStairs = transportMode === "walking" || transportMode === "cycling";
   const comparison = getRouteComparison(route, routes, transportMode);
 
   return (
     <Card
-      className={`${styles["route-results__card"]} ${isRecommended ? styles["route-results__card--recommended"] : ''} ${onClick ? styles["route-results__card--clickable"] : ''}`}
+      className={`${styles["route-results__card"]} ${showRecommended ? styles["route-results__card--recommended"] : ''} ${onClick ? styles["route-results__card--clickable"] : ''}`}
       style={{ "--route-color": routeColor } as CSSProperties}
       onClick={onClick}
     >
@@ -95,7 +97,7 @@ export function RouteCard({
             </span>
           </div>
           <div className={styles["route-results__card-header-right"]}>
-            {isRecommended && (
+            {showRecommended && (
               <Badge variant="secondary" className={styles["route-results__card-badge"]}>
                 Рекомендуемый
               </Badge>
@@ -140,14 +142,16 @@ export function RouteCard({
           </div>
         </div>
 
-        <div className={styles["route-results__card-score-row"]}>
+        {hasComparison && (
+          <div className={styles["route-results__card-score-row"]}>
           <span className={styles["route-results__card-score"]}>
             {comparison.score}/100
           </span>
           <span className={styles["route-results__card-reason"]}>
             {isRecommended ? `Рекомендован: ${comparison.reason}` : comparison.reason}
           </span>
-        </div>
+          </div>
+        )}
 
         {hasAlternatives && (
           <div

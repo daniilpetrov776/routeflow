@@ -13,8 +13,10 @@ export type RouteDisplayItem = {
 
 export function ComparisonSummary({
   items,
+  destinationCount,
 }: {
   items: RouteDisplayItem[];
+  destinationCount: number;
 }) {
   const summary = useMemo(() => {
     if (items.length === 0) return null;
@@ -35,6 +37,18 @@ export function ComparisonSummary({
       shortestValue: formatDistance(shortest.route.distance),
     };
   }, [items]);
+
+  if (destinationCount === 0) return null;
+
+  if (destinationCount === 1) {
+    return (
+      <div className={styles.insights}>
+        <p className={styles.emptyMessage}>
+          Для сравнения нужно минимум 2 пункта назначения
+        </p>
+      </div>
+    );
+  }
 
   if (!summary) return null;
 
