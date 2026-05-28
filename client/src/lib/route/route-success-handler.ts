@@ -34,6 +34,14 @@ function getTrafficLevel(
   return "light";
 }
 
+function getMockedStairsCount(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return hash % 4;
+}
+
 function getBaselineDurationsWithoutTraffic(
   startingPoint: AddressPoint,
   destination: AddressPoint,
@@ -87,7 +95,8 @@ function getBaselineDurationsWithoutTraffic(
 function yandexRouteToAlternative(
   route: YandexRoute,
   id: string,
-  baselineDuration?: number
+  baselineDuration?: number,
+  mockedStairsCount?: number
 ): RouteAlternative {
   const { duration, distance, isBlocked, stairsCount, transferCount } = extractRouteProperties(route);
   const coordinates = extractRouteCoordinates(route);
@@ -98,7 +107,7 @@ function yandexRouteToAlternative(
     traffic_info: {
       level: getTrafficLevel(isBlocked, duration, baselineDuration),
     },
-    stairsCount,
+    stairsCount: mockedStairsCount ?? stairsCount,
     transferCount,
     geometry: coordinates?.length ? { coordinates } : undefined,
   };
@@ -154,9 +163,26 @@ export const createRouteSuccessHandler = (
             yandexMapRef.current
           )
         : [];
-    const alternatives = yandexRoutes.map((yr, i) =>
-      yandexRouteToAlternative(yr, `${baseId}-alt-${i}`, baselineDurations[i] ?? baselineDurations[0])
-    );
+    const alternatives = yandexRoutes.map((yr, i) => {
+      const mockStairsCount =
+        transportMode === "walking" || transportMode === "cycling"
+          ? getMockedStairsCount(
+              [
+                startingPoint.coordinates.join(","),
+                destination.coordinates.join(","),
+                baseId,
+                i,
+              ].join("|")
+            )
+          : undefined;
+
+      return yandexRouteToAlternative(
+        yr,
+        `${baseId}-alt-${i}`,
+        baselineDurations[i] ?? baselineDurations[0],
+        mockStairsCount
+      );
+    });
     const selected =
       alternatives[selectedIdx] ?? alternatives[0];
 

@@ -147,7 +147,7 @@ export function registerSuggestRoute(app: Express) {
 
       const searchOptions = buildSearchOptions(ll, bbox);
       const isPoiCategory = looksLikePoiCategoryQuery(text);
-      const searchText = buildPoiSearchText(text, near);
+      const searchText = ll ? text : buildPoiSearchText(text, near);
 
       const [orgSearchData, geosuggestData] = await Promise.all([
         fetchOrgSearchSafe(searchText, searchOptions),

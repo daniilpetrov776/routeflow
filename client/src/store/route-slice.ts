@@ -147,6 +147,15 @@ const routeSlice = createSlice({
       state.destinations = action.payload.slice(0, MAX_DESTINATIONS);
       state.error = null;
     },
+    clearDestinations: (state) => {
+      state.destinations = [];
+      state.routes = [];
+      state.isCalculating = false;
+      state.error = null;
+      state.balloon.data = null;
+      state.balloon.position = null;
+      state.balloon.requestedRouteIndex = null;
+    },
     removeDestination: (state, action: PayloadAction<number>) => {
       const removedIndex = action.payload;
       const removedDestination = state.destinations[removedIndex];
@@ -298,6 +307,7 @@ export const {
   clearStartingPoint,
   addDestination,
   setDestinations,
+  clearDestinations,
   removeDestination,
   updateDestination,
   setTransportMode,

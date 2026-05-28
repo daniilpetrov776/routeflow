@@ -26,6 +26,16 @@ const normalize = (value: number, min: number, max: number): number => {
   return Math.min(1, Math.max(0, (value - min) / (max - min)));
 };
 
+const normalizeRelativeToBest = (
+  value: number,
+  best: number,
+  worstUsefulRatio: number
+): number => {
+  if (!Number.isFinite(value) || !Number.isFinite(best) || best <= 0) return 1;
+  if (value <= best) return 0;
+  return Math.min(1, (value / best - 1) / (worstUsefulRatio - 1));
+};
+
 const getMetricRanges = (routes: RouteOption[]) => {
   const values = routes.map((route) => ({
     duration: route.duration,
@@ -53,8 +63,8 @@ const getNormalizedMetrics = (
   route: RouteOption,
   ranges: ReturnType<typeof getMetricRanges>
 ): NormalizedMetrics => ({
-  duration: normalize(route.duration, ...ranges.duration),
-  distance: normalize(route.distance, ...ranges.distance),
+  duration: normalizeRelativeToBest(route.duration, ranges.duration[0], 3),
+  distance: normalizeRelativeToBest(route.distance, ranges.distance[0], 3),
   traffic: normalize(TRAFFIC_WEIGHT[route.traffic_info.level] ?? 1, ...ranges.traffic),
   transfers: normalize(route.transferCount ?? 0, ...ranges.transfers),
   stairs: normalize(route.stairsCount ?? 0, ...ranges.stairs),
@@ -85,8 +95,45 @@ export function getRouteScore(
   const metrics = getNormalizedMetrics(route, ranges);
   const penalty = getModePenalty(metrics, transportMode);
 
-  return Math.round(Math.max(0, Math.min(100, 100 - penalty * 45)));
+  return Math.round(Math.max(0, Math.min(100, 100 - penalty * 85)));
 }
+
+const isCloseDuration = (duration: number, fastest: number): boolean => {
+  if (duration <= fastest) return true;
+  return duration - fastest <= 5 * 60 || duration / fastest <= 1.3;
+};
+
+const hasBetterRouteWithSameOrFewerStairs = (
+  route: RouteOption,
+  routes: RouteOption[]
+): boolean => {
+  const routeStairs = route.stairsCount ?? 0;
+  return routes.some((item) => {
+    if (item === route || (item.stairsCount ?? 0) > routeStairs) {
+      return false;
+    }
+    if (item.duration < route.duration) {
+      return true;
+    }
+    return item.duration === route.duration && item.distance < route.distance;
+  });
+};
+
+const hasBetterRouteWithSameOrFewerTransfers = (
+  route: RouteOption,
+  routes: RouteOption[]
+): boolean => {
+  const routeTransfers = route.transferCount ?? 0;
+  return routes.some((item) => {
+    if (item === route || (item.transferCount ?? 0) > routeTransfers) {
+      return false;
+    }
+    if (item.duration < route.duration) {
+      return true;
+    }
+    return item.duration === route.duration && item.distance < route.distance;
+  });
+};
 
 export function getRecommendedRouteIndex(
   routes: RouteOption[],
@@ -115,9 +162,32 @@ export function getRouteComparison(
   const shortest = Math.min(...routes.map((item) => item.distance));
   const minTransfers = Math.min(...routes.map((item) => item.transferCount ?? 0));
   const minStairs = Math.min(...routes.map((item) => item.stairsCount ?? 0));
+  const hasDifferentTransfers = routes.some((item) => (item.transferCount ?? 0) !== minTransfers);
+  const hasDifferentStairs = routes.some((item) => (item.stairsCount ?? 0) !== minStairs);
+  const hasCloseDuration = isCloseDuration(route.duration, fastest);
+  const hasStairsAdvantage = !hasBetterRouteWithSameOrFewerStairs(route, routes);
+  const hasTransfersAdvantage = !hasBetterRouteWithSameOrFewerTransfers(route, routes);
 
   if (route.duration === fastest && route.distance === shortest) {
     return { score, reason: "лучшее время и расстояние" };
+  }
+  if (
+    route.duration === fastest &&
+    (transportMode === "walking" || transportMode === "cycling") &&
+    hasDifferentStairs &&
+    hasStairsAdvantage &&
+    (route.stairsCount ?? 0) === minStairs
+  ) {
+    return { score, reason: "лучшее время и меньше лестниц" };
+  }
+  if (
+    route.duration === fastest &&
+    transportMode === "transit" &&
+    hasDifferentTransfers &&
+    hasTransfersAdvantage &&
+    (route.transferCount ?? 0) === minTransfers
+  ) {
+    return { score, reason: "лучшее время и меньше пересадок" };
   }
   if (route.duration === fastest) {
     return { score, reason: "самое быстрое время" };
@@ -125,14 +195,29 @@ export function getRouteComparison(
   if (transportMode === "driving" && route.traffic_info.level === "light") {
     return { score, reason: "свободные пробки при хорошем времени" };
   }
-  if (transportMode === "transit" && (route.transferCount ?? 0) === minTransfers) {
+  if (
+    transportMode === "transit" &&
+    hasDifferentTransfers &&
+    hasTransfersAdvantage &&
+    hasCloseDuration &&
+    (route.transferCount ?? 0) === minTransfers
+  ) {
     return { score, reason: "меньше пересадок при близком времени" };
   }
-  if ((transportMode === "walking" || transportMode === "cycling") && (route.stairsCount ?? 0) === minStairs) {
+  if (
+    (transportMode === "walking" || transportMode === "cycling") &&
+    hasDifferentStairs &&
+    hasStairsAdvantage &&
+    hasCloseDuration &&
+    (route.stairsCount ?? 0) === minStairs
+  ) {
     return { score, reason: "меньше лестниц при близком времени" };
   }
   if (route.distance === shortest) {
     return { score, reason: "самое короткое расстояние" };
+  }
+  if (!hasCloseDuration) {
+    return { score, reason: "заметно дольше быстрых вариантов" };
   }
 
   return { score, reason: "сбалансирован по времени и расстоянию" };

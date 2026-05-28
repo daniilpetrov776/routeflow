@@ -76,7 +76,7 @@
   }
 
   .transport-mode-button-active {
-    @apply bg-primary text-primary-foreground shadow-sm;
+    @apply bg-foreground text-background shadow-sm;
   }
 
   .transport-mode-button-inactive {
@@ -84,7 +84,7 @@
   }
 
   .address-input {
-    @apply w-full px-4 py-3 bg-muted border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all;
+    @apply w-full px-4 py-3 bg-muted border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-all;
   }
 
   .suggestion-item {

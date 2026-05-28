@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/queryClient";
-import { formatAddressDisplay } from "@/lib/address-format";
+import { formatAddressDisplay, formatBusinessAddressDisplay } from "@/lib/address-format";
 
 export type GeocodedAddress = {
   address: string;
@@ -83,12 +83,16 @@ export const geocodeByUri = async (uri: string, fallbackTitle: string): Promise<
  */
 export const resolveSuggestion = async (input: {
   title: string;
+  fullAddress?: string;
+  kind?: "business" | "address";
   coordinates?: [number, number];
   uri?: string;
 }): Promise<GeocodedAddress | null> => {
   if (input.coordinates && input.coordinates.every(Number.isFinite)) {
     return {
-      address: input.title,
+      address: input.kind === "business"
+        ? formatBusinessAddressDisplay(input.title, input.fullAddress)
+        : formatAddressDisplay(input.fullAddress || input.title),
       coordinates: input.coordinates,
     };
   }
@@ -96,6 +100,12 @@ export const resolveSuggestion = async (input: {
   if (input.uri) {
     const geocoded = await geocodeByUri(input.uri, input.title);
     if (geocoded) {
+      if (input.kind === "business") {
+        return {
+          ...geocoded,
+          address: formatBusinessAddressDisplay(input.title, input.fullAddress || geocoded.address),
+        };
+      }
       return geocoded;
     }
   }

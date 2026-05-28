@@ -3,11 +3,13 @@ import { useSelector, useDispatch } from "react-redux";
 import { AnimatePresence, LayoutGroup } from "framer-motion";
 import { RootState } from "@/store";
 import {
+  clearDestinations,
   removeDestination,
   requestOpenRouteBalloonByIndex,
   setRouteSortMode,
   setSelectedAlternative,
 } from "@/store/route-slice";
+import { Button } from "@/components/ui/button";
 import { getRouteDisplayItems } from "@/lib/route/route-display-order";
 import { AddressInput } from "../address/address-input";
 import { RouteCard } from "./route-card";
@@ -15,6 +17,7 @@ import styles from "./route-results.module.css";
 import { DestinationsSection } from "./destinations-section";
 import { ComparisonSummary, type RouteDisplayItem } from "./comparison-summary";
 import { RouteCardMotion, routeCardMotionStyles } from "./route-card-motion";
+import { Trash2 } from "lucide-react";
 
 export function RouteResults({ error }: { error: string | null }) {
   const { routes, routeSortMode, transportMode, isCalculating, destinations, startingPoint } = useSelector((state: RootState) => state.route);
@@ -91,6 +94,8 @@ export function RouteResults({ error }: { error: string | null }) {
         .map(({ index }) => index),
     [destinations, routes]
   );
+  const displayedCardCount = pendingDestinationIndexes.length + sortedRoutes.length;
+  const canClearAll = displayedCardCount >= 2;
 
   const handleRemoveByRoute = (originalIndex: number) => {
     const destination = routes[originalIndex]?.destination;
@@ -103,6 +108,11 @@ export function RouteResults({ error }: { error: string | null }) {
     if (destinationIndex >= 0) {
       dispatch(removeDestination(destinationIndex));
     }
+  };
+
+  const handleClearAll = () => {
+    inputRefs.current.clear();
+    dispatch(clearDestinations());
   };
 
   if (routes.length === 0) {
@@ -137,6 +147,17 @@ export function RouteResults({ error }: { error: string | null }) {
           ))}
           </AnimatePresence>
         </LayoutGroup>
+        {canClearAll && (
+          <Button
+            type="button"
+            variant="outline"
+            className={styles["route-results__clear-all-button"]}
+            onClick={handleClearAll}
+          >
+            <Trash2 className={styles["route-results__clear-all-icon"]} />
+            Удалить все
+          </Button>
+        )}
         {isCalculating ? (
           <div className={styles["route-results__loading-list"]} aria-live="polite">
             {Array.from({ length: loadingCardCount }).map((_, index) => (
@@ -225,6 +246,17 @@ export function RouteResults({ error }: { error: string | null }) {
         ))}
         </AnimatePresence>
       </LayoutGroup>
+      {canClearAll && (
+        <Button
+          type="button"
+          variant="outline"
+          className={styles["route-results__clear-all-button"]}
+          onClick={handleClearAll}
+        >
+          <Trash2 className={styles["route-results__clear-all-icon"]} />
+          Удалить все
+        </Button>
+      )}
     </div>
   );
 }
