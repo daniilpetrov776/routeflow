@@ -15,12 +15,17 @@ import {
   getValidDestinations,
 } from "@/lib/map-container/helpers";
 import { destroyYandexMap, initYandexMap } from "@/lib/map-container/map-init";
+import { fitMapToPoints } from "@/lib/map-container/fit-map-view";
 import { closeRouteBalloon } from "@/store/route-slice";
 import { getRouteLineAppearance } from "@/lib/route/route-appearance";
 import { getRouteDisplayItems } from "@/lib/route/route-display-order";
-import { MAP_ANIMATION_DURATION, STARTING_POINT_ZOOM } from "@/lib/map-constants";
+import {
+  MAP_ANIMATION_DURATION,
+  MAP_BOUNDS_ADJUSTMENT_DELAY,
+  STARTING_POINT_ZOOM,
+} from "@/lib/map-constants";
 import type { AddressPoint } from "@/store/route-slice";
-import type { YandexMap, YandexMultiRoute, YandexPlacemark, YandexPolyline } from "@/types/yandex-maps";
+import type { Coordinates, YandexMap, YandexMultiRoute, YandexPlacemark, YandexPolyline } from "@/types/yandex-maps";
 
 export interface UseMapContainerProps {
   isLoaded: boolean;
@@ -49,6 +54,7 @@ export function useMapContainer({
   const { isCalculating, transportMode, routeSortMode, balloon, mapPlacementMode } = useSelector(
     (state: RootState) => state.route
   );
+  const prevPlacementModeRef = useRef(mapPlacementMode);
   const actualTheme = useSelector((state: RootState) => state.theme.actualTheme);
   const isDarkMap = actualTheme === "dark";
   const routeLineAppearance = useMemo(() => getRouteLineAppearance(isDarkMap), [isDarkMap]);
@@ -152,8 +158,15 @@ export function useMapContainer({
 
     calculateRoutes(startingPoint, validDestinations, transportMode);
 
+    // Центрируем только на старт, если нет пунктов назначения.
+    // При нескольких точках viewport подгоняется через fitMapToPoints
+    // (выход из ручного режима или завершение расчёта маршрутов).
     const startKey = startingPoint.coordinates.join(",");
-    if (lastCenteredStartRef.current !== startKey) {
+    if (
+      mapPlacementMode === "idle" &&
+      validDestinations.length === 0 &&
+      lastCenteredStartRef.current !== startKey
+    ) {
       yandexMapRef.current.setCenter(startingPoint.coordinates, STARTING_POINT_ZOOM, {
         duration: MAP_ANIMATION_DURATION,
       });
@@ -163,11 +176,32 @@ export function useMapContainer({
     startingPoint,
     validDestinationsKey,
     transportMode,
+    mapPlacementMode,
     calculateRoutes,
     clearCalculatedRoutes,
     yandexMapRef,
     validDestinations,
   ]);
+
+  useEffect(() => {
+    const prevMode = prevPlacementModeRef.current;
+    prevPlacementModeRef.current = mapPlacementMode;
+
+    if (prevMode === "idle" || mapPlacementMode !== "idle") {
+      return;
+    }
+
+    const map = yandexMapRef.current;
+    if (!map || !startingPoint) {
+      return;
+    }
+
+    const routePoints: Coordinates[] = [
+      startingPoint.coordinates,
+      ...validDestinations.map((destination) => destination.coordinates),
+    ];
+    fitMapToPoints(map, routePoints, MAP_BOUNDS_ADJUSTMENT_DELAY);
+  }, [mapPlacementMode, startingPoint, validDestinations, yandexMapRef]);
 
   useEffect(() => {
     if (!yandexMapRef.current || !window.ymaps) return;
@@ -201,10 +235,21 @@ export function useMapContainer({
   }, [yandexMapRef]);
 
   const handleCenter = useCallback(() => {
-    if (yandexMapRef.current && startingPoint) {
-      yandexMapRef.current.setCenter(startingPoint.coordinates);
+    const map = yandexMapRef.current;
+    if (!map || !startingPoint) {
+      return;
     }
-  }, [startingPoint, yandexMapRef]);
+
+    if (validDestinations.length > 0) {
+      fitMapToPoints(map, [
+        startingPoint.coordinates,
+        ...validDestinations.map((destination) => destination.coordinates),
+      ]);
+      return;
+    }
+
+    map.setCenter(startingPoint.coordinates);
+  }, [startingPoint, validDestinations.length, yandexMapRef]);
 
   const handleMapClick = useCallback(
     (e: React.MouseEvent) => {

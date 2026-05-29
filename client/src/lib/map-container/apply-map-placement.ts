@@ -49,9 +49,11 @@ async function geocodeMapPoint(
     return null;
   }
 
+  // Маркер ставим ровно в точку клика; геокодер возвращает координаты
+  // ближайшего адреса/перекрёстка и может смещать точку на сотни метров.
   return {
     address: geocoded.address,
-    coordinates: geocoded.coordinates,
+    coordinates: coords,
   };
 }
 

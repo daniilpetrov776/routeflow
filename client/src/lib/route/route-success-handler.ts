@@ -10,8 +10,8 @@ import {
   getRouteColor,
   ROUTE_STYLES,
   MAP_BOUNDS_ADJUSTMENT_DELAY,
-  MAP_ZOOM_MARGIN,
 } from "@/lib/map-constants";
+import { fitMapToPoints } from "@/lib/map-container/fit-map-view";
 import { applyRouteLineAppearance } from "./route-appearance";
 import { getRouteDisplayItems } from "./route-display-order";
 import { createMultiRoute } from "./route-creator";
@@ -262,16 +262,13 @@ export const createRouteSuccessHandler = (
         );
       });
 
-      setTimeout(() => {
-        if (!yandexMapRef.current) return;
-        const bounds = yandexMapRef.current.geoObjects.getBounds();
-        if (bounds && yandexMapRef.current) {
-          yandexMapRef.current.setBounds(bounds, {
-            checkZoomRange: true,
-            zoomMargin: MAP_ZOOM_MARGIN,
-          });
-        }
-      }, MAP_BOUNDS_ADJUSTMENT_DELAY);
+      if (yandexMapRef.current && store?.getState().route.mapPlacementMode === "idle") {
+        const routePoints = [
+          startingPoint.coordinates,
+          ...completedRoutes.map((route) => route.destination.coordinates),
+        ];
+        fitMapToPoints(yandexMapRef.current, routePoints, MAP_BOUNDS_ADJUSTMENT_DELAY);
+      }
     }
   };
 };
