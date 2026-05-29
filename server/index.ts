@@ -10,6 +10,26 @@ const app = express();
 
 // Настройка CORS для клиента
 const defaultDevOrigins = ["http://localhost:5173", "http://localhost:3000"];
+
+function isPrivateNetworkOrigin(origin: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(origin);
+    if (protocol !== "http:" && protocol !== "https:") {
+      return false;
+    }
+
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 const envOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map(origin => origin.trim())
@@ -25,7 +45,11 @@ const allowedOrigins =
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      (process.env.NODE_ENV !== "production" && isPrivateNetworkOrigin(origin))
+    ) {
       return callback(null, origin ?? allowedOrigins[0]);
     }
     return callback(new Error(`Origin ${origin} not allowed by CORS`));

@@ -208,6 +208,14 @@ export async function fetchGeocoderData(query: string, results: number = 10) {
 }
 
 /**
+ * Обратное геокодирование: координаты → адрес (Yandex geocode=lon,lat)
+ */
+export async function fetchReverseGeocoderData(lon: number, lat: number) {
+  const query = `${lon},${lat}`;
+  return fetchGeocoderData(query, 1);
+}
+
+/**
  * Геокодирует объект по uri из Geosuggest
  */
 export async function fetchGeocoderByUri(uri: string) {

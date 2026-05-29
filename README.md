@@ -36,6 +36,14 @@ npm run dev
 
 Клиент будет доступен на http://localhost:3000
 
+### Дерево компонентов
+
+После изменений в UI обновите [`COMPONENT_TREE.md`](COMPONENT_TREE.md):
+
+```bash
+cd client && npm run docs:component-tree
+```
+
 ## Развертывание
 
 ### Сервер

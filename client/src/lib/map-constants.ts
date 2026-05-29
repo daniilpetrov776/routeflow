@@ -84,6 +84,7 @@ export const ROUTE_STYLES = {
   /** Настройки для тёмной темы карты — выше контраст активной альтернативы */
   DARK: {
     ACTIVE_OPACITY: 1,
+    INACTIVE_OPACITY: 0.6,
     ACTIVE_WIDTH_BOOST: 2,
     OVERLAY_OPACITY: 1,
     OVERLAY_OUTLINE_COLOR: "#ffffff",

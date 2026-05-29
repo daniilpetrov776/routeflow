@@ -13,6 +13,14 @@
   position: relative; /* Для корректной работы Yandex Maps */
 }
 
+.map-container__map--placing :global([class*="events-pane"]) {
+  cursor: crosshair !important;
+}
+
+.map-container__map--placing :global([class*="ground-pane"]) {
+  cursor: crosshair !important;
+}
+
 .map-container__map :global([class*="ground-pane"]) {
   transition: filter 240ms ease;
 }
