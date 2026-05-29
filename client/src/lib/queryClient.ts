@@ -1,11 +1,34 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { retry } from "./retry";
 
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV
-    ? "http://localhost:5001" // локально
-    : "https://<твой-backend>.railway.app"); // прод
+function isLocalhostHostname(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+function getApiBase(): string {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+
+  if (import.meta.env.DEV) {
+    if (typeof window !== "undefined" && envUrl) {
+      try {
+        const apiHost = new URL(envUrl).hostname;
+        const pageHost = window.location.hostname;
+        // С телефона localhost:5001 недоступен — используем same-origin + Vite proxy.
+        if (isLocalhostHostname(apiHost) && !isLocalhostHostname(pageHost)) {
+          return "";
+        }
+      } catch {
+        // ignore malformed VITE_API_URL
+      }
+    }
+
+    return envUrl ?? "";
+  }
+
+  return envUrl ?? "https://<твой-backend>.railway.app";
+}
+
+const API_BASE = getApiBase();
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {

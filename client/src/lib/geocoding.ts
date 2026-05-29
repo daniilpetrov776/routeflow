@@ -78,6 +78,27 @@ export const geocodeByUri = async (uri: string, fallbackTitle: string): Promise<
   }
 };
 
+const formatCoordinateFallback = (lat: number, lon: number): string =>
+  `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+/**
+ * Обратное геокодирование: координаты → адрес
+ */
+export const reverseGeocode = async (lat: number, lon: number): Promise<GeocodedAddress | null> => {
+  const fallback = formatCoordinateFallback(lat, lon);
+  try {
+    const response = await apiRequest(
+      "GET",
+      `/api/geocode?ll=${encodeURIComponent(`${lon},${lat}`)}`
+    );
+    const data = await response.json();
+    return extractGeocodedAddress(data, fallback);
+  } catch (error) {
+    console.error("Reverse geocode failed:", error);
+    return null;
+  }
+};
+
 /**
  * Разрешает подсказку в AddressPoint: использует координаты или geocode-by-uri
  */

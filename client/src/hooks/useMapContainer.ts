@@ -1,9 +1,12 @@
-import { useEffect, useRef, useMemo, useCallback } from "react";
+import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { useRouteCalculation } from "@/hooks/useRouteCalculation";
 import { useMapRouteLayers } from "@/hooks/useMapRouteLayers";
 import { useMapBalloonSync } from "@/hooks/useMapBalloonSync";
+import { useMapClickPlacement } from "@/hooks/useMapClickPlacement";
+import { useMapLongPressPlacement } from "@/hooks/useMapLongPressPlacement";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { createAllMarkers } from "@/lib/map-markers";
 import { clearOverlays } from "@/lib/map-container/route-overlays";
 import {
@@ -38,10 +41,12 @@ export function useMapContainer({
   const markersRef = useRef<YandexPlacemark[]>([]);
   const selectedRouteOverlaysRef = useRef<YandexPolyline[]>([]);
   const lastCenteredStartRef = useRef<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const dispatch = useDispatch();
+  const isMobile = useIsMobile();
 
   const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
-  const { isCalculating, transportMode, routeSortMode, balloon } = useSelector(
+  const { isCalculating, transportMode, routeSortMode, balloon, mapPlacementMode } = useSelector(
     (state: RootState) => state.route
   );
   const actualTheme = useSelector((state: RootState) => state.theme.actualTheme);
@@ -108,12 +113,17 @@ export function useMapContainer({
     requestedRouteIndex,
   });
 
+  useMapClickPlacement(yandexMapRef, mapReady && !isMobile);
+
+  const longPressPlacement = useMapLongPressPlacement(yandexMapRef, mapReady && isMobile);
+
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
 
     const initMap = () => {
       if (mapRef.current) {
         initYandexMap(mapRef.current, yandexMapRef);
+        setMapReady(true);
       }
     };
 
@@ -122,6 +132,7 @@ export function useMapContainer({
     }
 
     return () => {
+      setMapReady(false);
       destroyYandexMap(yandexMapRef);
     };
   }, [isLoaded, yandexMapRef]);
@@ -218,6 +229,9 @@ export function useMapContainer({
     mapRef,
     isCalculating,
     balloon,
+    mapPlacementMode,
+    isMobile,
+    longPressPlacement,
     handleZoomIn,
     handleZoomOut,
     handleCenter,

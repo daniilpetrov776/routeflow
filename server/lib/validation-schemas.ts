@@ -41,6 +41,10 @@ export const routeRequestSchema = z.object({
   transportMode: transportModeSchema,
 });
 
+const coordinateString = z
+  .string()
+  .regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/, "Ожидается формат lon,lat");
+
 /**
  * Схема для валидации query параметра адреса (геокодирование)
  */
@@ -58,14 +62,11 @@ export const geocodeQuerySchema = z
       .max(2000, "URI слишком длинный")
       .trim()
       .optional(),
+    ll: coordinateString.optional(),
   })
-  .refine((data) => Boolean(data.address || data.uri), {
-    message: "Укажите address или uri",
+  .refine((data) => Boolean(data.address || data.uri || data.ll), {
+    message: "Укажите address, uri или ll",
   });
-
-const coordinateString = z
-  .string()
-  .regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/, "Ожидается формат lon,lat");
 
 /**
  * Схема для валидации query параметра текста (предложения)

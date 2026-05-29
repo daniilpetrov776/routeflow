@@ -1,6 +1,8 @@
 import { MapControls } from "./map-controls";
 import { MapLoadingState } from "./map-loading-state";
 import { MapCalculatingState } from "./map-calculating-state";
+import { MapPlacementMode } from "./map-placement-mode";
+import { MapPlacementContextMenu } from "./map-placement-context-menu";
 import { RouteBalloon } from "../route/route-balloon";
 import { useMapContainer } from "@/hooks/useMapContainer";
 import type { AddressPoint } from "@/store/route-slice";
@@ -34,13 +36,30 @@ export function MapContainer({
     <div className={styles["map-container"]} onClick={map.handleMapClick}>
       <div
         ref={map.mapRef}
-        className={styles["map-container__map"]}
+        className={`${styles["map-container__map"]} ${
+          !map.isMobile && map.mapPlacementMode !== "idle"
+            ? styles["map-container__map--placing"]
+            : ""
+        }`}
         style={{ minHeight: "100%" }}
       />
 
       {!isLoaded && <MapLoadingState />}
 
       {map.isCalculating && <MapCalculatingState />}
+
+      <MapPlacementMode />
+
+      <MapPlacementContextMenu
+        open={map.longPressPlacement.menuState.open}
+        anchor={map.longPressPlacement.menuState.anchor}
+        coords={map.longPressPlacement.menuState.coords}
+        destinationsCount={map.longPressPlacement.destinationsCount}
+        isBusy={map.longPressPlacement.isApplying}
+        onSelectStart={map.longPressPlacement.handleSelectStart}
+        onSelectDestination={map.longPressPlacement.handleSelectDestination}
+        onClose={map.longPressPlacement.closeMenu}
+      />
 
       <MapControls
         onZoomIn={map.handleZoomIn}

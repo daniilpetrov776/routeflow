@@ -150,7 +150,7 @@ flowchart TD
 
 <!-- component-tree:ascii:start -->
 
-_Сгенерировано: 2026-05-29T09:18:38.772Z_
+_Сгенерировано: 2026-05-29T12:59:23.199Z_
 
 ```
 main.tsx (entry)
@@ -162,6 +162,8 @@ main.tsx (entry)
     │   │   │   ├── MapControls
     │   │   │   │   └── Button
     │   │   │   ├── MapLoadingState
+    │   │   │   ├── MapPlacementMode
+    │   │   │   │   └── Button
     │   │   │   └── RouteBalloon
     │   │   │       ├── Badge
     │   │   │       ├── Button

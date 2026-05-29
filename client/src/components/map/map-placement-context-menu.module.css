@@ -1,0 +1,39 @@
+.map-placement-context-menu__backdrop {
+  @apply fixed inset-0;
+  z-index: 60;
+  background: transparent;
+}
+
+.map-placement-context-menu {
+  @apply fixed z-[61] min-w-[11rem] overflow-hidden rounded-lg border border-border shadow-lg;
+  background-color: color-mix(in srgb, var(--background) 96%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.map-placement-context-menu__item {
+  @apply flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-foreground transition-colors;
+}
+
+.map-placement-context-menu__item:hover:not(:disabled) {
+  @apply bg-accent text-accent-foreground;
+}
+
+.map-placement-context-menu__item:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.map-placement-context-menu__item + .map-placement-context-menu__item {
+  @apply border-t border-border;
+}
+
+.map-placement-context-menu__item--cancel {
+  @apply text-muted-foreground;
+}
+
+.map-placement-context-menu__icon {
+  @apply h-4 w-4 shrink-0;
+}
+
+.map-placement-context-menu__hint {
+  @apply border-t border-border px-3 py-2 text-[11px] leading-snug text-muted-foreground;
+}

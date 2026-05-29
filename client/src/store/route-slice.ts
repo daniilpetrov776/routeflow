@@ -89,12 +89,15 @@ export interface RouteBalloonState {
   requestedRouteIndex: number | null; // Индекс маршрута, для которого запрошено открытие balloon
 }
 
+export type MapPlacementMode = "idle" | "start" | "destination";
+
 export interface RouteState {
   startingPoint: AddressPoint | null;
   destinations: AddressPoint[];
   transportMode: TransportMode;
   routeSortMode: RouteSortMode;
   routes: RouteOption[];
+  mapPlacementMode: MapPlacementMode;
 
   isCalculating: boolean;
   error: string | null;
@@ -112,6 +115,7 @@ const initialState: RouteState = {
   transportMode: 'walking',
   routeSortMode: 'time',
   routes: [],
+  mapPlacementMode: 'idle',
 
   isCalculating: false,
   error: null,
@@ -299,6 +303,9 @@ const routeSlice = createSlice({
       state.persistRoutes = action.payload;
       setItem(PERSIST_ROUTES_KEY, action.payload);
     },
+    setMapPlacementMode: (state, action: PayloadAction<MapPlacementMode>) => {
+      state.mapPlacementMode = action.payload;
+    },
   },
 });
 
@@ -324,6 +331,7 @@ export const {
   clearRequestedRouteIndex,
   closeRouteBalloon,
   setPersistRoutes,
+  setMapPlacementMode,
 } = routeSlice.actions;
 
 export default routeSlice.reducer;
