@@ -19,7 +19,7 @@ export function getRouteLineAppearance(isDark = isDarkMapTheme()): RouteLineAppe
   if (isDark) {
     return {
       activeOpacity: ROUTE_STYLES.DARK.ACTIVE_OPACITY,
-      inactiveOpacity: ROUTE_STYLES.BASE_STROKE_OPACITY,
+      inactiveOpacity: ROUTE_STYLES.DARK.INACTIVE_OPACITY,
       overlayOpacity: ROUTE_STYLES.DARK.OVERLAY_OPACITY,
       overlayOutlineWidth: ROUTE_STYLES.DARK.OVERLAY_OUTLINE_WIDTH,
       overlayOutlineColor: ROUTE_STYLES.DARK.OVERLAY_OUTLINE_COLOR,
