@@ -51,6 +51,7 @@ export function useMapContainer({
   const isMobile = useIsMobile();
 
   const calculatedRoutes = useSelector((state: RootState) => state.route.routes);
+  const routeWaypoints = useSelector((state: RootState) => state.route.routeWaypoints);
   const { isCalculating, transportMode, routeSortMode, balloon, mapPlacementMode } = useSelector(
     (state: RootState) => state.route
   );
@@ -70,6 +71,17 @@ export function useMapContainer({
   const validDestinationsKey = useMemo(
     () => validDestinations.map(getDestinationKey).join("|"),
     [validDestinations]
+  );
+
+  const routeWaypointsKey = useMemo(
+    () =>
+      Object.entries(routeWaypoints)
+        .map(
+          ([key, points]) =>
+            `${key}=${points.map((point) => point.coordinates.join(",")).join(">")}`
+        )
+        .join("|"),
+    [routeWaypoints]
   );
 
   const routeDisplayItems = useMemo(
@@ -156,7 +168,7 @@ export function useMapContainer({
       clearOverlays(yandexMapRef.current, selectedRouteOverlaysRef);
     }
 
-    calculateRoutes(startingPoint, validDestinations, transportMode);
+    calculateRoutes(startingPoint, validDestinations, transportMode, routeWaypoints);
 
     // Центрируем только на старт, если нет пунктов назначения.
     // При нескольких точках viewport подгоняется через fitMapToPoints
@@ -177,6 +189,8 @@ export function useMapContainer({
     validDestinationsKey,
     transportMode,
     mapPlacementMode,
+    routeWaypointsKey,
+    routeWaypoints,
     calculateRoutes,
     clearCalculatedRoutes,
     yandexMapRef,

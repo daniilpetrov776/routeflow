@@ -69,6 +69,33 @@ export const geocodeQuerySchema = z
   });
 
 /**
+ * Точка коридора в формате [lon, lat] для поиска «по пути»
+ */
+const corridorPointSchema = z.tuple([
+  z.number().min(-180).max(180), // долгота
+  z.number().min(-90).max(90), // широта
+]);
+
+/**
+ * Схема для валидации запроса поиска организаций вдоль маршрута
+ */
+export const alongRouteRequestSchema = z.object({
+  text: z
+    .string()
+    .min(1, "Текст запроса не может быть пустым")
+    .max(200, "Текст запроса слишком длинный")
+    .trim(),
+  points: z
+    .array(corridorPointSchema)
+    .min(1, "Нужна хотя бы одна точка коридора")
+    .max(12, "Слишком много точек коридора"),
+  spn: z
+    .string()
+    .regex(/^\d+(\.\d+)?,\d+(\.\d+)?$/, "Ожидается формат dLon,dLat")
+    .optional(),
+});
+
+/**
  * Схема для валидации query параметра текста (предложения)
  */
 export const suggestQuerySchema = z.object({

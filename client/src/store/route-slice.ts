@@ -1,5 +1,10 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { MAX_DESTINATIONS, MAX_DESTINATIONS_MESSAGE } from '@shared/route-limits';
+import {
+  MAX_DESTINATIONS,
+  MAX_DESTINATIONS_MESSAGE,
+  MAX_WAYPOINTS_PER_ROUTE,
+  MAX_WAYPOINTS_MESSAGE,
+} from '@shared/route-limits';
 import { getItemWithDefault, setItem } from '@/lib/localStorage';
 
 export type TransportMode = 'walking' | 'cycling' | 'transit' | 'driving';
@@ -11,6 +16,20 @@ export interface AddressPoint {
   address: string;
   coordinates: [number, number];
 }
+
+/**
+ * Промежуточные точки (заезды «по пути») хранятся отдельно от destinations
+ * и привязаны к пункту назначения по координатному ключу, чтобы переживать
+ * фильтрацию пустых пунктов и изменение порядка.
+ */
+export type RouteWaypointsMap = Record<string, AddressPoint[]>;
+
+export const getWaypointKey = (point: AddressPoint): string =>
+  point.coordinates.map((coordinate) => coordinate.toFixed(6)).join(',');
+
+const isSameAddressPoint = (a: AddressPoint, b: AddressPoint): boolean =>
+  Math.abs(a.coordinates[0] - b.coordinates[0]) < 0.0001 &&
+  Math.abs(a.coordinates[1] - b.coordinates[1]) < 0.0001;
 
 export interface RouteAlternative {
   id: string;
@@ -98,6 +117,7 @@ export interface RouteState {
   routeSortMode: RouteSortMode;
   routes: RouteOption[];
   mapPlacementMode: MapPlacementMode;
+  routeWaypoints: RouteWaypointsMap; // Заезды «по пути», ключ — координаты пункта назначения
 
   isCalculating: boolean;
   error: string | null;
@@ -116,6 +136,7 @@ const initialState: RouteState = {
   routeSortMode: 'time',
   routes: [],
   mapPlacementMode: 'idle',
+  routeWaypoints: {},
 
   isCalculating: false,
   error: null,
@@ -149,11 +170,19 @@ const routeSlice = createSlice({
     },
     setDestinations: (state, action: PayloadAction<AddressPoint[]>) => {
       state.destinations = action.payload.slice(0, MAX_DESTINATIONS);
+      // Оставляем только заезды, чьи пункты назначения ещё присутствуют
+      const validKeys = new Set(state.destinations.map(getWaypointKey));
+      for (const key of Object.keys(state.routeWaypoints)) {
+        if (!validKeys.has(key)) {
+          delete state.routeWaypoints[key];
+        }
+      }
       state.error = null;
     },
     clearDestinations: (state) => {
       state.destinations = [];
       state.routes = [];
+      state.routeWaypoints = {};
       state.isCalculating = false;
       state.error = null;
       state.balloon.data = null;
@@ -175,6 +204,11 @@ const routeSlice = createSlice({
       
       // Удаляем destination
       state.destinations.splice(removedIndex, 1);
+
+      // Удаляем заезды «по пути», привязанные к удалённому пункту
+      if (removedDestination) {
+        delete state.routeWaypoints[getWaypointKey(removedDestination)];
+      }
       
       // Удаляем соответствующий маршрут из store
       // Находим маршрут по destination (адрес и координаты)
@@ -196,7 +230,19 @@ const routeSlice = createSlice({
       state.error = null;
     },
     updateDestination: (state, action: PayloadAction<{ index: number; destination: AddressPoint }>) => {
+      const previous = state.destinations[action.payload.index];
       state.destinations[action.payload.index] = action.payload.destination;
+
+      // Переносим заезды на новый координатный ключ, если пункт изменился
+      if (previous) {
+        const previousKey = getWaypointKey(previous);
+        const nextKey = getWaypointKey(action.payload.destination);
+        if (previousKey !== nextKey && state.routeWaypoints[previousKey]) {
+          state.routeWaypoints[nextKey] = state.routeWaypoints[previousKey];
+          delete state.routeWaypoints[previousKey];
+        }
+      }
+
       state.error = null;
     },
     setTransportMode: (state, action: PayloadAction<TransportMode>) => {
@@ -306,6 +352,53 @@ const routeSlice = createSlice({
     setMapPlacementMode: (state, action: PayloadAction<MapPlacementMode>) => {
       state.mapPlacementMode = action.payload;
     },
+    addRouteWaypoint: (
+      state,
+      action: PayloadAction<{ destination: AddressPoint; point: AddressPoint }>
+    ) => {
+      const { destination, point } = action.payload;
+      const key = getWaypointKey(destination);
+      const existing = state.routeWaypoints[key] ?? [];
+
+      if (existing.length >= MAX_WAYPOINTS_PER_ROUTE) {
+        state.error = MAX_WAYPOINTS_MESSAGE;
+        return;
+      }
+
+      const isDuplicate =
+        existing.some((waypoint) => isSameAddressPoint(waypoint, point)) ||
+        isSameAddressPoint(destination, point) ||
+        (state.startingPoint ? isSameAddressPoint(state.startingPoint, point) : false);
+
+      if (isDuplicate) {
+        return;
+      }
+
+      state.routeWaypoints[key] = [...existing, point];
+      state.error = null;
+    },
+    removeRouteWaypoint: (
+      state,
+      action: PayloadAction<{ destination: AddressPoint; waypointIndex: number }>
+    ) => {
+      const { destination, waypointIndex } = action.payload;
+      const key = getWaypointKey(destination);
+      const existing = state.routeWaypoints[key];
+      if (!existing) {
+        return;
+      }
+
+      const next = existing.filter((_, index) => index !== waypointIndex);
+      if (next.length > 0) {
+        state.routeWaypoints[key] = next;
+      } else {
+        delete state.routeWaypoints[key];
+      }
+      state.error = null;
+    },
+    setRouteWaypoints: (state, action: PayloadAction<RouteWaypointsMap>) => {
+      state.routeWaypoints = action.payload ?? {};
+    },
   },
 });
 
@@ -332,6 +425,9 @@ export const {
   closeRouteBalloon,
   setPersistRoutes,
   setMapPlacementMode,
+  addRouteWaypoint,
+  removeRouteWaypoint,
+  setRouteWaypoints,
 } = routeSlice.actions;
 
 export default routeSlice.reducer;

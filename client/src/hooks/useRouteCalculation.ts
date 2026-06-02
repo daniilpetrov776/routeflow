@@ -1,9 +1,14 @@
 import { useCallback, useRef } from "react";
 import { useDispatch, useStore } from "react-redux";
-import { setCalculating, setRoutes } from "@/store/route-slice";
+import { getWaypointKey, setCalculating, setRoutes } from "@/store/route-slice";
 import type { RootState } from "@/store";
 import { showRouteError } from "@/lib/error-toast";
-import type { AddressPoint, RouteOption, TransportMode } from "@/store/route-slice";
+import type {
+  AddressPoint,
+  RouteOption,
+  RouteWaypointsMap,
+  TransportMode,
+} from "@/store/route-slice";
 import type { YandexMap, YandexMultiRoute } from "@/types/yandex-maps";
 import {
   getRouteColor,
@@ -36,17 +41,22 @@ interface RouteRecord {
 const coordinateKey = (point: AddressPoint): string =>
   point.coordinates.map((coordinate) => coordinate.toFixed(6)).join(",");
 
+const viaKey = (via: AddressPoint[]): string =>
+  via.map((point) => coordinateKey(point)).join(">");
+
 const getRouteCacheKey = (
   startingPoint: AddressPoint,
   destination: AddressPoint,
   transportMode: TransportMode,
-  routeIndex: number
+  routeIndex: number,
+  via: AddressPoint[] = []
 ): string => {
   return [
     routeIndex,
     transportMode,
     coordinateKey(startingPoint),
     coordinateKey(destination),
+    viaKey(via),
   ].join("|");
 };
 
@@ -115,10 +125,14 @@ export function useRouteCalculation({
   const calculateRoutes = useCallback(async (
     startingPoint: AddressPoint,
     destinations: AddressPoint[],
-    transportMode: TransportMode
+    transportMode: TransportMode,
+    routeWaypoints: RouteWaypointsMap = {}
   ) => {
     const map = yandexMapRef.current;
     if (!map || !startingPoint) return;
+
+    const getViaForDestination = (destination: AddressPoint): AddressPoint[] =>
+      routeWaypoints[getWaypointKey(destination)] ?? [];
     
     if (!window.ymaps) {
       const errorMessage = "Yandex Maps API не загружен";
@@ -148,7 +162,13 @@ export function useRouteCalculation({
 
     const activeKeys = new Set(
       validDestinations.map((destination, index) =>
-        getRouteCacheKey(startingPoint, destination, transportMode, index)
+        getRouteCacheKey(
+          startingPoint,
+          destination,
+          transportMode,
+          index,
+          getViaForDestination(destination)
+        )
       )
     );
 
@@ -167,7 +187,8 @@ export function useRouteCalculation({
 
     for (let i = 0; i < validDestinations.length; i++) {
       const destination = validDestinations[i];
-      const cacheKey = getRouteCacheKey(startingPoint, destination, transportMode, i);
+      const via = getViaForDestination(destination);
+      const cacheKey = getRouteCacheKey(startingPoint, destination, transportMode, i, via);
 
       const destinationError = validateDestination(destination, i);
       if (destinationError) {
@@ -210,7 +231,8 @@ export function useRouteCalculation({
           startingPoint,
           destination,
           transportMode,
-          i
+          i,
+          { via }
         );
 
         addRouteClickHandler(route, i, destination, map, dispatch);
@@ -245,7 +267,8 @@ export function useRouteCalculation({
             if (record?.route === route) {
               record.option = cloneRouteOption(routeOption, i, destination);
             }
-          }
+          },
+          via
         );
         route.model.events.add("requestsuccess", successHandler);
 

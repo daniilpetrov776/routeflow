@@ -78,7 +78,7 @@ export const createMultiRoute = (
   destination: AddressPoint,
   transportMode: TransportMode,
   routeIndex: number,
-  options?: { avoidTrafficJams?: boolean }
+  options?: { avoidTrafficJams?: boolean; via?: AddressPoint[] }
 ): YandexMultiRoute => {
   if (!window.ymaps) {
     throw new Error("Yandex Maps API не загружен");
@@ -88,10 +88,13 @@ export const createMultiRoute = (
   const routeParams = createRoutingParams(routingMode, options?.avoidTrafficJams);
   const routeOptions = createMultiRouteOptions(routeIndex);
 
+  const viaPoints = (options?.via ?? []).map((waypoint) => waypoint.coordinates);
+
   return new window.ymaps.multiRouter.MultiRoute(
     {
       referencePoints: [
         startingPoint.coordinates,
+        ...viaPoints,
         destination.coordinates,
       ],
       params: routeParams,

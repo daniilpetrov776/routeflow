@@ -147,6 +147,12 @@ export interface MultiRouteOptions {
 export interface RoutingParams {
   routingMode: "auto" | "pedestrian" | "bicycle" | "masstransit";
   avoidTrafficJams?: boolean;
+  /**
+   * Индексы опорных точек, которые трактуются как транзитные (throughpoint),
+   * а не как остановки (waypoint). Только для авто-маршрутов. Позволяет
+   * сохранять альтернативные маршруты при наличии промежуточных точек.
+   */
+  viaIndexes?: number[];
 }
 
 /**
@@ -155,6 +161,15 @@ export interface RoutingParams {
 export interface MultiRouteModel {
   events: YandexEventManager;
   getRoutes(): YandexRoute[];
+  setReferencePoints?: (referencePoints: Coordinates[]) => void;
+  destroy?: () => void;
+}
+
+/**
+ * Конструктор модели MultiRoute (расчёт без отрисовки на карте)
+ */
+export interface MultiRouteModelConstructor {
+  new (referencePoints: Coordinates[], params?: RoutingParams): MultiRouteModel;
 }
 
 /**
@@ -263,6 +278,7 @@ export interface MultiRouteConstructor {
  */
 export interface MultiRouterModule {
   MultiRoute: MultiRouteConstructor;
+  MultiRouteModel?: MultiRouteModelConstructor;
 }
 
 /**

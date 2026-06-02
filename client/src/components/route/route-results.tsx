@@ -17,11 +17,15 @@ import styles from "./route-results.module.css";
 import { DestinationsSection } from "./destinations-section";
 import { ComparisonSummary, type RouteDisplayItem } from "./comparison-summary";
 import { RouteCardMotion, routeCardMotionStyles } from "./route-card-motion";
+import { AlongRoutePanel } from "./along-route-panel";
+import { useAlongRoute } from "@/hooks/useAlongRoute";
+import { getWaypointKey } from "@/store/route-slice";
 import { Trash2 } from "lucide-react";
 
 export function RouteResults({ error }: { error: string | null }) {
-  const { routes, routeSortMode, transportMode, isCalculating, destinations, startingPoint } = useSelector((state: RootState) => state.route);
+  const { routes, routeSortMode, transportMode, isCalculating, destinations, startingPoint, routeWaypoints } = useSelector((state: RootState) => state.route);
   const dispatch = useDispatch();
+  const alongRoute = useAlongRoute();
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const prevLengthRef = useRef(destinations.length);
 
@@ -236,16 +240,21 @@ export function RouteResults({ error }: { error: string | null }) {
               index={colorIndex}
               isRecommended={isRecommended}
               transportMode={transportMode}
+              waypointsCount={(routeWaypoints[getWaypointKey(route.destination)] ?? []).length}
+              canAlongRoute={Boolean(startingPoint) && (route.geometry?.coordinates?.length ?? 0) > 1}
               onClick={() => dispatch(requestOpenRouteBalloonByIndex(originalIndex))}
               onSelectAlternative={(alternativeIndex) =>
                 dispatch(setSelectedAlternative({ routeIndex: originalIndex, alternativeIndex }))
               }
               onRemove={() => handleRemoveByRoute(originalIndex)}
+              onAlongRoute={() => alongRoute.openForRoute(originalIndex)}
             />
           </RouteCardMotion>
         ))}
         </AnimatePresence>
       </LayoutGroup>
+
+      <AlongRoutePanel controller={alongRoute} />
       {canClearAll && (
         <Button
           type="button"

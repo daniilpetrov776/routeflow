@@ -7,7 +7,7 @@ import { getRouteComparison } from "@/lib/route/route-comparison";
 import { sanitizeText } from "@/lib/sanitize";
 import type { RouteOption, TransportMode } from "@/store/route-slice";
 import styles from "./route-results.module.css";
-import { Trash2 } from "lucide-react";
+import { Navigation, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface RouteCardProps {
@@ -16,9 +16,12 @@ interface RouteCardProps {
   index: number;
   isRecommended: boolean;
   transportMode: TransportMode;
+  waypointsCount?: number;
+  canAlongRoute?: boolean;
   onClick?: () => void;
   onSelectAlternative?: (alternativeIndex: number) => void;
   onRemove?: () => void;
+  onAlongRoute?: () => void;
 }
 
 /**
@@ -66,9 +69,12 @@ export function RouteCard({
   index,
   isRecommended,
   transportMode,
+  waypointsCount = 0,
+  canAlongRoute = false,
   onClick,
   onSelectAlternative,
   onRemove,
+  onAlongRoute,
 }: RouteCardProps) {
   const routeColor = getRouteColor(index);
   const hasAlternatives = route.alternatives.length > 1;
@@ -104,8 +110,28 @@ export function RouteCard({
             <span className={styles["route-results__card-title"]}>
               {sanitizeText(truncateAddress(route.destination.address))}
             </span>
+            {waypointsCount > 0 && (
+              <Badge variant="secondary" className={styles["route-results__card-waypoints-badge"]}>
+                +{waypointsCount} заезд{waypointsCount === 1 ? "" : waypointsCount < 5 ? "а" : "ов"}
+              </Badge>
+            )}
           </div>
           <div className={styles["route-results__card-header-right"]}>
+            {onAlongRoute && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Найти организации по пути"
+                disabled={!canAlongRoute}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onAlongRoute();
+                }}
+              >
+                <Navigation className={styles["route-results__remove-icon"]} />
+              </Button>
+            )}
             {onRemove && (
               <Button
                 type="button"

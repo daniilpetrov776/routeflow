@@ -74,6 +74,25 @@ export const routesLimiter = rateLimit({
 });
 
 /**
+ * Rate limiter для along-route роута
+ * Каждый запрос порождает несколько обращений к Yandex (коридорный поиск),
+ * поэтому лимит строже.
+ */
+export const alongRouteLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 минута
+  max: 20, // максимум 20 запросов в минуту с одного IP
+  message: "Слишком много запросов поиска по пути, попробуйте позже",
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req: Request, res: Response) => {
+    logger.warn(`Along-route rate limit exceeded for IP ${req.ip}`);
+    res.status(429).json({
+      error: "Слишком много запросов поиска по пути, попробуйте позже",
+    });
+  },
+});
+
+/**
  * Rate limiter для yandex-maps/config роута
  * Более строгий лимит, так как используется редко (при загрузке страницы)
  */

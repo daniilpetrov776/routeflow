@@ -206,6 +206,10 @@
   @apply flex min-w-0 items-stretch gap-3;
 }
 
+.route-results__card-waypoints-badge {
+  @apply shrink-0 self-center text-[10px] font-medium;
+}
+
 .route-results__card-header-right {
   display: flex;
   flex-direction: column;

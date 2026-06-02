@@ -5,9 +5,11 @@ import {
   setStartingPoint,
   setDestinations,
   setTransportMode,
+  setRouteWaypoints,
   clearRoutes,
   AddressPoint,
   TransportMode,
+  RouteWaypointsMap,
 } from "@/store/route-slice";
 import { setItem, getItem } from "@/lib/localStorage";
 
@@ -17,6 +19,7 @@ interface SavedRouteState {
   startingPoint: AddressPoint | null;
   destinations: AddressPoint[];
   transportMode: TransportMode;
+  routeWaypoints?: RouteWaypointsMap; // Заезды «по пути»
   // routes не сохраняем, чтобы они пересчитывались при загрузке
 }
 
@@ -67,12 +70,18 @@ export function RoutePersistence() {
                 if (savedState.destinations.length > 0) {
                   dispatch(setDestinations(savedState.destinations));
                 }
+                if (savedState.routeWaypoints) {
+                  dispatch(setRouteWaypoints(savedState.routeWaypoints));
+                }
               }, 500); // Увеличена задержка после установки startingPoint
             }, 200); // Увеличена начальная задержка
           } else if (savedState.destinations.length > 0) {
             // Если нет startingPoint, но есть destinations, устанавливаем их
             setTimeout(() => {
               dispatch(setDestinations(savedState.destinations));
+              if (savedState.routeWaypoints) {
+                dispatch(setRouteWaypoints(savedState.routeWaypoints));
+              }
             }, 200);
           }
         }
@@ -99,6 +108,7 @@ export function RoutePersistence() {
         startingPoint: routeState.startingPoint,
         destinations: routeState.destinations,
         transportMode: routeState.transportMode,
+        routeWaypoints: routeState.routeWaypoints,
         // routes не сохраняем - они будут пересчитаны при загрузке
       };
       setItem(CURRENT_ROUTE_STATE_KEY, stateToSave);
@@ -109,6 +119,7 @@ export function RoutePersistence() {
     routeState.startingPoint,
     routeState.destinations,
     routeState.transportMode,
+    routeState.routeWaypoints,
     // routeState.routes не включаем в зависимости, так как не сохраняем
     dispatch,
   ]);

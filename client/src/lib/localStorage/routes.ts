@@ -8,6 +8,7 @@ import {
   type TransportMode,
   type RouteOption,
   type RouteOptionLike,
+  type RouteWaypointsMap,
 } from '@/store/route-slice';
 import { getItem, setItem, removeItem, hasItem } from './storage';
 
@@ -26,6 +27,7 @@ export interface SavedRoute {
   destinations: AddressPoint[];
   transportMode: TransportMode;
   routes: RouteOption[];
+  routeWaypoints?: RouteWaypointsMap;
   createdAt: number;
   updatedAt: number;
 }
@@ -222,6 +224,7 @@ export function updateRouteName(routeId: string, name: string): boolean {
       destinations: route.destinations,
       transportMode: route.transportMode,
       routes: route.routes,
+      routeWaypoints: route.routeWaypoints,
       name,
     },
     routeId

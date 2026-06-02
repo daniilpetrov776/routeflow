@@ -46,7 +46,8 @@ function getBaselineDurationsWithoutTraffic(
   startingPoint: AddressPoint,
   destination: AddressPoint,
   routeIndex: number,
-  map: YandexMap | null
+  map: YandexMap | null,
+  via: AddressPoint[] = []
 ): Promise<number[]> {
   if (!map) return Promise.resolve([]);
 
@@ -69,7 +70,7 @@ function getBaselineDurationsWithoutTraffic(
         destination,
         "driving",
         routeIndex,
-        { avoidTrafficJams: false }
+        { avoidTrafficJams: false, via }
       );
       baselineRoute.options.set({
         opacity: 0,
@@ -128,7 +129,8 @@ export const createRouteSuccessHandler = (
   yandexMapRef: React.RefObject<YandexMap | null>,
   dispatch: any,
   store?: Store<RootState>,
-  onRouteResolved?: (routeOption: RouteOption) => void
+  onRouteResolved?: (routeOption: RouteOption) => void,
+  via: AddressPoint[] = []
 ) => {
   return async () => {
     const yandexRoutes = toYandexRoutesArray(route.model.getRoutes());
@@ -160,7 +162,8 @@ export const createRouteSuccessHandler = (
             startingPoint,
             destination,
             routeIndex,
-            yandexMapRef.current
+            yandexMapRef.current,
+            via
           )
         : [];
     const alternatives = yandexRoutes.map((yr, i) => {
